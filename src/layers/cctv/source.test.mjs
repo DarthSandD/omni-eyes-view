@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCctvSource, createCctvLayer } from './index.js';
+import { resolveCctvApiBase } from './source.js';
 
 const camera = {
   id: 'pack/camera ?x',
@@ -195,4 +196,86 @@ test('frame provenance admits the proxy kinds and leaves missing or unknown head
     const frame = await source.getFrame(camera);
     assert.equal(frame.sourceKind, kind === 'other' ? null : kind);
   }
+});
+
+test('CCTV api base: github.io falls back to the worker, pages.dev and localhost stay same-origin', () => {
+  assert.equal(
+    resolveCctvApiBase({ hostname: 'darthsandd.github.io' }),
+    'https://gev-api.darthsandd.workers.dev',
+  );
+  assert.equal(
+    resolveCctvApiBase({ hostname: 'sub.darthsandd.github.io' }),
+    'https://gev-api.darthsandd.workers.dev',
+  );
+  assert.equal(resolveCctvApiBase({ hostname: 'foo.pages.dev' }), '');
+  assert.equal(resolveCctvApiBase({ hostname: 'localhost' }), '');
+  assert.equal(resolveCctvApiBase({ hostname: '127.0.0.1' }), '');
+  assert.equal(resolveCctvApiBase({ hostname: '' }), '');
+});
+
+test('CCTV api base precedence: ?api= > window.__GEV_API_BASE__ > build-time env > github.io', () => {
+  assert.equal(
+    resolveCctvApiBase({
+      search: '?api=https://query.example/api/',
+      hostname: 'darthsandd.github.io',
+      globalApiBase: 'https://window.example',
+      envApiBase: 'https://env.example',
+    }),
+    'https://query.example/api',
+  );
+  assert.equal(
+    resolveCctvApiBase({
+      hostname: 'darthsandd.github.io',
+      globalApiBase: 'https://window.example/',
+      envApiBase: 'https://env.example',
+    }),
+    'https://window.example',
+  );
+  assert.equal(
+    resolveCctvApiBase({
+      hostname: 'darthsandd.github.io',
+      envApiBase: 'https://env.example',
+    }),
+    'https://env.example',
+  );
+  assert.equal(
+    resolveCctvApiBase({
+      apiBase: 'https://explicit.example',
+      search: '?api=https://query.example',
+      hostname: 'darthsandd.github.io',
+    }),
+    'https://explicit.example',
+  );
+});
+
+test('CCTV fetches and frame/media URLs all carry the resolved api base', async () => {
+  const calls = [];
+  const source = createCctvSource({
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ sources: [], cameras: [] }));
+    },
+    locationImpl: { search: '', hostname: 'darthsandd.github.io' },
+    windowImpl: {},
+  });
+  assert.equal(
+    source.apiBase,
+    'https://gev-api.darthsandd.workers.dev',
+  );
+  await source.getCatalog();
+  await source.getHealth();
+  assert.ok(calls[0].startsWith('https://gev-api.darthsandd.workers.dev/api/cctv/sources'));
+  assert.ok(calls[1].startsWith('https://gev-api.darthsandd.workers.dev/api/cctv/health'));
+  assert.ok(
+    source.getFrameUrl(camera).startsWith('https://gev-api.darthsandd.workers.dev/api/cctv/frame/'),
+  );
+  assert.ok(
+    source.getMediaUrl(camera).startsWith('https://gev-api.darthsandd.workers.dev/api/cctv/media/'),
+  );
+  const sameOrigin = createCctvSource({
+    locationImpl: { search: '', hostname: 'foo.pages.dev' },
+    windowImpl: {},
+  });
+  assert.equal(sameOrigin.apiBase, '');
+  assert.ok(sameOrigin.getFrameUrl(camera).startsWith('/api/cctv/frame/'));
 });

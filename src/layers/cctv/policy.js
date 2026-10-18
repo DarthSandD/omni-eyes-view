@@ -27,6 +27,11 @@ export const HEALTH_SYNC_INTERVAL_MS = 7000;
 
 export const IDLE_FRAME_REFRESH_MS = 60000;
 
+/** Consecutive projection-frame failures after which a feed is treated as
+ * dead: the steady placeholder stays and no further frame fetches are
+ * issued until an explicit (re-)activation retries once (force). */
+export const CCTV_DEAD_FEED_FAILURES = 3;
+
 export const PROJECTION_ACTIVE_REFRESH_MS = 10000;
 
 export const PROJECTION_IDLE_REFRESH_MS = 60000;
@@ -397,6 +402,199 @@ export const CAMERA_SEEDS = [
     fovDeg: 69,
     rangeM: 700,
     elevationM: 20,
+  },
+  // Indonesia seeds: ids match config/cctv_sources.indonesia.json so the
+  // server catalog merges onto them by id. The 8 POI-anchored seeds reuse
+  // the abandoned-merge offsets; the 4 Janger seeds anchor on the
+  // Soekarno-Hatta Airport T3 POI with offsets computed from the config's
+  // own lat/lon (not invented coordinates). Seed-only mode (GH Pages, no
+  // /api) still shows all 12 markers; pageUrl opens the public live-player
+  // portal in a new tab, never fetched or iframed.
+  {
+    id: 'jt-km04600',
+    cityId: 'jakarta',
+    poiIndex: 7,
+    label: 'Janger KM 04+600', // i18n-ignore: camera name
+    offsetNorthM: -5499,
+    offsetEastM: 9862,
+    headingDeg: 270,
+    fovDeg: 70,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Jasa Marga · live',
+    feedType: 'hls',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=jakarta-tangerang',
+  },
+  {
+    id: 'jt-km10600',
+    cityId: 'jakarta',
+    poiIndex: 7,
+    label: 'Janger KM 10+600', // i18n-ignore: camera name
+    offsetNorthM: -4943,
+    offsetEastM: 3774,
+    headingDeg: 270,
+    fovDeg: 70,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Jasa Marga · live',
+    feedType: 'hls',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=jakarta-tangerang',
+  },
+  {
+    id: 'jt-km13600',
+    cityId: 'jakarta',
+    poiIndex: 7,
+    label: 'Janger KM 13+600', // i18n-ignore: camera name
+    offsetNorthM: -4720,
+    offsetEastM: 675,
+    headingDeg: 270,
+    fovDeg: 70,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Jasa Marga · live',
+    feedType: 'hls',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=jakarta-tangerang',
+  },
+  {
+    id: 'jt-km15500',
+    cityId: 'jakarta',
+    poiIndex: 7,
+    label: 'Janger KM 15+500', // i18n-ignore: camera name
+    offsetNorthM: -4497,
+    offsetEastM: -1206,
+    headingDeg: 270,
+    fovDeg: 70,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Jasa Marga · live',
+    feedType: 'hls',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=jakarta-tangerang',
+  },
+  {
+    id: 'jakarta-senayan-toll',
+    cityId: 'jakarta',
+    poiIndex: 6,
+    label: 'Senayan Toll Gate', // i18n-ignore: camera name
+    offsetNorthM: 50,
+    offsetEastM: -60,
+    headingDeg: 90,
+    fovDeg: 72,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Jasa Marga toll portal',
+    feedType: 'image',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=jakarta-tangerang',
+  },
+  {
+    id: 'serang-walantaka-toll',
+    cityId: 'serang',
+    poiIndex: 3,
+    label: 'Walantaka Toll Gate', // i18n-ignore: camera name
+    offsetNorthM: 60,
+    offsetEastM: -50,
+    headingDeg: 100,
+    fovDeg: 72,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Wika Serang-Panimbang · ON RAMP WALANTAKA',
+    feedType: 'hls',
+    pageUrl:
+      'https://binamarga.pu.go.id/contents/cctv_tol/?id_ruas=serang-panimbang-seksi-1-serang-rangkasbitung',
+  },
+  {
+    id: 'bandung-gedung-sate',
+    cityId: 'bandung',
+    poiIndex: 0,
+    label: 'Gedung Sate Forecourt', // i18n-ignore: camera name
+    offsetNorthM: 100,
+    offsetEastM: -50,
+    headingDeg: 180,
+    fovDeg: 70,
+    rangeM: 660,
+    elevationM: 22,
+    provider: 'ATCS Dishub Bandung',
+    feedType: 'image',
+    pageUrl: 'https://atcs-dishub.bandung.go.id/',
+  },
+  {
+    id: 'bandung-alun-alun',
+    cityId: 'bandung',
+    poiIndex: 1,
+    label: 'Alun-Alun Core', // i18n-ignore: camera name
+    offsetNorthM: -90,
+    offsetEastM: 60,
+    headingDeg: 10,
+    fovDeg: 68,
+    rangeM: 620,
+    elevationM: 20,
+    provider: 'ATCS Dishub · SP MERDEKA ACEH',
+    feedType: 'hls',
+    pageUrl: 'https://atcs-dishub.bandung.go.id/',
+  },
+  {
+    id: 'semarang-simpang-lima',
+    cityId: 'semarang',
+    poiIndex: 0,
+    label: 'Simpang Lima Loop', // i18n-ignore: camera name
+    offsetNorthM: 110,
+    offsetEastM: -70,
+    headingDeg: 190,
+    fovDeg: 72,
+    rangeM: 700,
+    elevationM: 22,
+    provider: 'Dishub Semarang · PAHLAWAN-SIMPANG LIMA',
+    feedType: 'hls',
+    pageUrl: 'https://pantausemar.semarangkota.go.id/',
+  },
+  {
+    id: 'semarang-lawang-sewu',
+    cityId: 'semarang',
+    poiIndex: 1,
+    label: 'Lawang Sewu Front', // i18n-ignore: camera name
+    offsetNorthM: -80,
+    offsetEastM: 90,
+    headingDeg: 270,
+    fovDeg: 68,
+    rangeM: 640,
+    elevationM: 20,
+    provider: 'Dishub Semarang · TUGUMUDA (Lawang Sewu)',
+    feedType: 'hls',
+    pageUrl: 'https://pantausemar.semarangkota.go.id/',
+  },
+  {
+    id: 'surabaya-tunjungan',
+    cityId: 'surabaya',
+    poiIndex: 0,
+    label: 'Tunjungan Corridor', // i18n-ignore: camera name
+    offsetNorthM: 90,
+    offsetEastM: -80,
+    headingDeg: 185,
+    fovDeg: 70,
+    rangeM: 680,
+    elevationM: 22,
+    provider: 'Lewatmana Surabaya',
+    feedType: 'image',
+    pageUrl: 'https://lewatmana.com/cam/',
+  },
+  {
+    id: 'surabaya-balai-kota',
+    cityId: 'surabaya',
+    poiIndex: 1,
+    label: 'Balai Kota Forecourt', // i18n-ignore: camera name
+    offsetNorthM: -100,
+    offsetEastM: 50,
+    headingDeg: 5,
+    fovDeg: 68,
+    rangeM: 640,
+    elevationM: 20,
+    provider: 'Lewatmana Surabaya',
+    feedType: 'image',
+    pageUrl: 'https://lewatmana.com/cam/',
   },
 ];
 

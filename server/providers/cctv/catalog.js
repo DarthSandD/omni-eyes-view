@@ -16,6 +16,7 @@ import {
   loadTallinnSourcesFromCatalog,
   loadTarkteeSourcesFromDatex,
   loadWarendorfSourcesFromCatalog,
+  loadIndonesiaSourcesFromCatalog,
   loadNswSourcesFromOpenData,
   loadCalgarySourcesFromOpenData,
   loadCataloniaSourcesFromOpenData,
@@ -89,6 +90,11 @@ const LIVE_PACKS = [
     name: 'warendorf',
     enabled: () => envEnabled('CCTV_WARENDORF_ENABLED'),
     load: loadWarendorfSourcesFromCatalog,
+  },
+  {
+    name: 'indonesia',
+    enabled: () => envEnabled('CCTV_INDONESIA_ENABLED'),
+    load: loadIndonesiaSourcesFromCatalog,
   },
   {
     name: 'nsw',

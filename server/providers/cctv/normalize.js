@@ -594,6 +594,12 @@ export function normalizeSourceItem(item) {
     feedType: normalizeFeedType(item.feedType || item.type || ''),
     url: typeof item.url === 'string' ? item.url : '',
     snapshotUrl: typeof item.snapshotUrl === 'string' ? item.snapshotUrl : '',
+    // Public live-player portal for this camera (WATCH LIVE). Passed
+    // through as-is; the client opens it in a new tab, never fetches it.
+    pageUrl:
+      typeof item.pageUrl === 'string' && item.pageUrl.trim()
+        ? item.pageUrl.trim()
+        : undefined,
     license: String(item.license || item.licenseNote || ''),
     // Per-camera attribution for feeds a partner supplies inside a pack
     // (DriveBC: TransLink, city cameras). Shown beside the provider.

@@ -201,7 +201,28 @@ export const WARENDORF_IMAGE_ORIGINS = Object.freeze([
   'http://webcam.warendorf.de/',
   'https://www.kreis-warendorf.de/',
 ]);
-/** Live Traffic NSW (Transport for NSW): keyless public camera catalog. */
+/** Indonesia: curated catalog file (Jakarta/Serang/Bandung/Semarang/Surabaya). */
+export const DEFAULT_INDONESIA_SOURCE_FILE =
+  'config/cctv_sources.indonesia.json';
+export const DEFAULT_INDONESIA_MAX_SOURCES = 12;
+/** Prioritization anchor: Jakarta (the pack's densest city). */
+export const INDONESIA_CENTER = { lat: -6.175, lon: 106.745 };
+/** Feed origins the Indonesia pack may serve. The config is curated, but the
+ * proxy only ever fetches registered URLs from these origins. */
+export const INDONESIA_FEED_ORIGINS = Object.freeze([
+  'https://jmlive.jasamarga.com/',
+  'https://cctv.wikaserangpanimbang.com/',
+  'https://atcs-dishub.bandung.go.id/',
+  'https://atcs-dishub.bandung.go.id:1990/',
+  'https://livepantau.semarangkota.go.id/',
+]);
+/** Public live-player portals the Indonesia pack links to (WATCH LIVE). */
+export const INDONESIA_PAGE_URL_ORIGINS = Object.freeze([
+  'https://binamarga.pu.go.id/',
+  'https://atcs-dishub.bandung.go.id/',
+  'https://pantausemar.semarangkota.go.id/',
+  'https://lewatmana.com/',
+]);
 export const NSW_CAMERAS_URL =
   'https://data.livetraffic.com/cameras/traffic-cam.json';
 export const NSW_IMAGE_ORIGIN = 'https://webcams.transport.nsw.gov.au/';

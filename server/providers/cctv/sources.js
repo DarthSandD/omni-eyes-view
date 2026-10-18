@@ -45,6 +45,11 @@ import {
   TARKTEE_ANCHORS,
   DEFAULT_WARENDORF_SOURCE_FILE,
   WARENDORF_IMAGE_ORIGINS,
+  DEFAULT_INDONESIA_SOURCE_FILE,
+  DEFAULT_INDONESIA_MAX_SOURCES,
+  INDONESIA_CENTER,
+  INDONESIA_FEED_ORIGINS,
+  INDONESIA_PAGE_URL_ORIGINS,
   NSW_CAMERAS_URL,
   NSW_IMAGE_ORIGIN,
   DEFAULT_NSW_MAX_SOURCES,
@@ -1335,6 +1340,101 @@ export function loadWarendorfSourcesFromCatalog({
   }
   console.log('[CCTV] Loaded Warendorf camera sources:', cameras.length);
   return cameras;
+}
+
+/**
+ * Load the Indonesia cameras (Jakarta/Serang/Bandung/Semarang/Surabaya)
+ * from the curated catalog file. Feed URLs are public toll/city CCTV
+ * (.m3u8 HLS or portal-only image seeds); only the pack's own feed and
+ * portal origins are registered. Rows without lat/lon are kept — the
+ * client's seed catalog supplies their positions by id — and rows
+ * without a feed URL are kept as portal-only seeds (WATCH LIVE).
+ *
+ * @returns {Array<object>} Normalized camera source objects.
+ */
+export function loadIndonesiaSourcesFromCatalog({
+  sourceRoot = process.cwd(),
+} = {}) {
+  const sourceFile =
+    process.env.CCTV_INDONESIA_SOURCES_FILE || DEFAULT_INDONESIA_SOURCE_FILE;
+  const resolved = path.isAbsolute(sourceFile)
+    ? sourceFile
+    : path.resolve(sourceRoot, sourceFile);
+  let rows = [];
+  try {
+    if (!fs.existsSync(resolved)) {
+      console.warn('[CCTV] Indonesia source file missing:', resolved);
+      return [];
+    }
+    const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'));
+    rows = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn(
+      '[CCTV] Indonesia source file read error:',
+      error?.message || error,
+    );
+    return [];
+  }
+  const cityIds = new Set([
+    'jakarta',
+    'serang',
+    'bandung',
+    'semarang',
+    'surabaya',
+  ]);
+  const cameras = [];
+  for (const item of rows) {
+    if (!item || typeof item !== 'object') continue;
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (!id) continue;
+    const cityId = String(item.cityId || '').trim();
+    if (!cityIds.has(cityId)) continue;
+    const url = typeof item.url === 'string' ? item.url.trim() : '';
+    if (url && !INDONESIA_FEED_ORIGINS.some((o) => url.startsWith(o))) continue;
+    const pageUrl = typeof item.pageUrl === 'string' ? item.pageUrl.trim() : '';
+    if (
+      pageUrl &&
+      !INDONESIA_PAGE_URL_ORIGINS.some((o) => pageUrl.startsWith(o))
+    )
+      continue;
+    const lat = typeof item.lat === 'number' ? item.lat : NaN;
+    const lon = typeof item.lon === 'number' ? item.lon : NaN;
+    // Indonesia metro sanity for rows that carry coordinates; rows without
+    // coordinates keep NaN and resolve against the client seed by id.
+    if (
+      (Number.isFinite(lat) || Number.isFinite(lon)) &&
+      (!Number.isFinite(lat) ||
+        !Number.isFinite(lon) ||
+        lat < -11 ||
+        lat > 6 ||
+        lon < 95 ||
+        lon > 141)
+    )
+      continue;
+    cameras.push({
+      ...item,
+      id,
+      cityId,
+      url,
+      pageUrl: pageUrl || undefined,
+      feedType: item.feedType === 'hls' ? 'hls' : 'image',
+      sourceKind: String(item.sourceKind || 'configured'),
+    });
+  }
+  const unique = Array.from(
+    new Map(cameras.map((camera) => [camera.id, camera])).values(),
+  );
+  const maxRaw = Number(
+    process.env.CCTV_INDONESIA_MAX_SOURCES || DEFAULT_INDONESIA_MAX_SOURCES,
+  );
+  const maxCount = Number.isFinite(maxRaw)
+    ? Math.max(1, Math.min(50, Math.floor(maxRaw)))
+    : DEFAULT_INDONESIA_MAX_SOURCES;
+  const prioritized = prioritizeSources(unique, maxCount, [INDONESIA_CENTER]);
+  console.log(
+    `[CCTV] Loaded Indonesia camera sources: ${unique.length} (using nearest ${prioritized.length})`,
+  );
+  return prioritized;
 }
 
 /**

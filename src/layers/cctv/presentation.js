@@ -143,6 +143,9 @@ export function createPresentation({
       isVideo:
         parts.model.isVideoFeedType(camera.feedType) &&
         record.projection?.mode !== 'image',
+      // Public live-player portal (WATCH LIVE in the panel). Opened in a
+      // new tab, never fetched or iframed.
+      pageUrl: camera.pageUrl || null,
       sourceKind:
         health?.sourceKind ||
         camera.sourceKind ||

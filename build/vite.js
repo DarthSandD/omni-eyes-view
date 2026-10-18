@@ -54,6 +54,7 @@ export function createBrowserViteConfig({
   googleApiKey,
   cesiumToken,
   mapillaryToken,
+  gevApiBase,
   host = 'localhost',
   port = 4173,
   allowedHosts = DEFAULT_ALLOWED_HOSTS,
@@ -108,6 +109,10 @@ export function createBrowserViteConfig({
     define: {
       'import.meta.env.GOOGLE_MAPS_API_KEY': JSON.stringify(googleApiKey),
       'import.meta.env.CESIUM_ION_TOKEN': JSON.stringify(cesiumToken),
+      // CCTV API base for static hosts: GH Pages has no /api, so the CCTV
+      // layer falls back to the deployed worker (see resolveCctvApiBase in
+      // src/layers/cctv/source.js). Empty by default = same-origin.
+      'import.meta.env.GEV_API_BASE': JSON.stringify(gevApiBase ?? ''),
       // Mapillary client tokens are public by design (see SECURITY.md).
       'import.meta.env.MAPILLARY_CLIENT_TOKEN': JSON.stringify(
         mapillaryToken ?? '',

@@ -169,6 +169,9 @@ export function cctvProxy({ sourceRoot = process.cwd() } = {}) {
               license: source.license,
               credit: source.credit || '',
               code: source.code || '',
+              // Public live-player portal (WATCH LIVE). The client opens it
+              // in a new tab, never fetches it.
+              pageUrl: source.pageUrl || '',
               groundHeights: source.groundHeights || null,
             })),
           };

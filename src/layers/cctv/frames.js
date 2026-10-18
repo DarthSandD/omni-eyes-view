@@ -10,6 +10,7 @@ import {
   PROJECTION_ACTIVE_REFRESH_MS,
   PROJECTION_IDLE_REFRESH_MS,
   PLACEHOLDER_REPAINT_MS,
+  CCTV_DEAD_FEED_FAILURES,
 } from './policy.js';
 
 export function createFrames({ state: layerState, services, parts, source }) {
@@ -220,6 +221,12 @@ export function createFrames({ state: layerState, services, parts, source }) {
     // Hidden-state gate (perf wave 2): no new frame fetch/decode for a canvas
     // nobody can see. The refresh interval re-fills naturally on return.
     if (typeof document !== 'undefined' && document.hidden && !force) return;
+    // Dead-feed stop: after CCTV_DEAD_FEED_FAILURES consecutive failures the
+    // placeholder stays steady and the dead frame endpoint is not re-fetched
+    // on every tick. An explicit (re-)activation passes force=true for one
+    // retry; a success resets the counter (see projection.js handlers).
+    if (!force && (runtime.frameFailureCount || 0) >= CCTV_DEAD_FEED_FAILURES)
+      return;
     // Do not replace an in-flight URL on the 10-second refresh boundary. Slow
     // providers otherwise leave cancelled server requests behind and the plane
     // can remain permanently pending. The proxy bounds each attempt; load/error

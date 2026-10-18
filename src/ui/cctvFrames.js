@@ -1,5 +1,9 @@
 import { msg, t } from '../i18n/index.js';
 
+/** Consecutive panel-frame failures after which a feed is treated as dead
+ * (mirrors CCTV_DEAD_FEED_FAILURES for the projection plane). */
+export const CCTV_PANEL_DEAD_AFTER_FAILURES = 3;
+
 /**
  * Display text for the CCTV source health the server reports
  * (server/providers/cctv.js `setHealth`). The server keeps its English codes
@@ -90,6 +94,7 @@ export function _clearCctvFrame() {
     this._cctvFrame.dataset.currentSrc = '';
     this._cctvFrame.dataset.loading = '';
     this._cctvFrame.dataset.error = '';
+    this._cctvFrame.dataset.frameFailures = '';
   }
   this._cctvFrameWrap?.classList.remove('loading', 'has-frame');
 }
@@ -100,9 +105,19 @@ export function _queueCctvFrame(src, cameraId, cameraChanged) {
   if (cameraChanged) {
     // A different camera gets an honest acquisition state. Never retain
     // the prior camera's pixels under the newly selected metadata.
+    // A camera switch also resets the dead-feed stop (one fresh retry).
     this._cctvFrame.classList.remove('active');
     this._cctvFrame.removeAttribute('src');
     this._cctvFrameWrap?.classList.remove('has-frame');
+    this._cctvFrame.dataset.frameFailures = '';
+  } else if (
+    Number(this._cctvFrame.dataset.frameFailures || 0) >=
+    CCTV_PANEL_DEAD_AFTER_FAILURES
+  ) {
+    // Dead-feed stop: after consecutive failures the panel stops re-fetching
+    // this camera's dead frame endpoint on every refresh tick. The STREAM
+    // DOWN badge + WATCH LIVE stay. A camera switch retries once.
+    return;
   }
 
   if (this._cctvFramePreloader) {
@@ -149,12 +164,17 @@ export function _settleCctvFrame(token, src, ok) {
 
   if (!ok) {
     // Leave the element untouched — a settled frame stays on screen.
+    // Count consecutive failures so the panel stops hammering a dead feed.
     this._cctvFrame.dataset.error = 'true';
+    this._cctvFrame.dataset.frameFailures = String(
+      Number(this._cctvFrame.dataset.frameFailures || 0) + 1,
+    );
     syncBadge();
     return;
   }
 
   this._cctvFrame.dataset.error = '';
+  this._cctvFrame.dataset.frameFailures = '';
   this._cctvFrame.src = src;
   this._cctvFrame.classList.add('active');
   this._cctvFrameWrap?.classList.add('has-frame');
@@ -171,12 +191,12 @@ export function _syncCctvSourceBadge(activeCamera, enabled) {
   const hasDisplayedFrame =
     this._cctvFrameWrap?.classList.contains('has-frame');
   if (this._cctvFrame?.dataset.loading === 'true' && !hasDisplayedFrame) {
-    this._cctvSourceBadge.textContent = t('FRAME · LOADING');
+    this._cctvSourceBadge.textContent = t('CONNECTING');
     this._cctvSourceBadge.dataset.frameState = 'loading';
     return;
   }
   if (this._cctvFrame?.dataset.error === 'true' && !hasDisplayedFrame) {
-    this._cctvSourceBadge.textContent = t('FRAME · UNAVAILABLE');
+    this._cctvSourceBadge.textContent = t('STREAM DOWN');
     this._cctvSourceBadge.dataset.frameState = 'error';
     return;
   }
@@ -186,4 +206,26 @@ export function _syncCctvSourceBadge(activeCamera, enabled) {
   const status = cctvSourceStatusLabel(activeCamera.sourceStatus || 'unknown');
   this._cctvSourceBadge.textContent = `${kind} · ${status}`;
   this._cctvSourceBadge.dataset.frameState = 'ready';
+}
+
+/**
+ * Syncs the panel's WATCH LIVE link from the active camera's pageUrl.
+ * The portal opens in a new tab; it is never fetched or iframed. Only
+ * http(s) URLs are ever wired into href.
+ */
+export function _syncCctvWatchLive(activeCamera, enabled) {
+  if (!this._cctvWatchLive) return;
+  const pageUrl =
+    enabled && typeof activeCamera?.pageUrl === 'string'
+      ? activeCamera.pageUrl.trim()
+      : '';
+  const safe = pageUrl.startsWith('https://') || pageUrl.startsWith('http://');
+  if (safe) {
+    this._cctvWatchLive.href = pageUrl;
+    this._cctvWatchLive.hidden = false;
+    this._cctvWatchLive.textContent = t('WATCH LIVE');
+  } else {
+    this._cctvWatchLive.removeAttribute('href');
+    this._cctvWatchLive.hidden = true;
+  }
 }

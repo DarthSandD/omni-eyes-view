@@ -368,6 +368,20 @@ html:not([lang='en']) .cctv-controls .scene-btn {
   background: rgba(255, 72, 72, 0.11);
 }
 
+.cctv-watch-live {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  color: #9defff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cctv-watch-live[hidden] {
+  display: none;
+}
+
 .cctv-summary-label {
   font-family: var(--font-mono);
   font-size: 8px;

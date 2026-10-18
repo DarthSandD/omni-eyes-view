@@ -247,11 +247,13 @@ export function createProjection({
             runtime.image.onload = () => {
               runtime.imageLoading = false;
               runtime.imageReady = true;
+              runtime.frameFailureCount = 0;
               runtime.imageStamp = Date.now();
             };
             runtime.image.onerror = () => {
               runtime.imageLoading = false;
               runtime.imageReady = false;
+              runtime.frameFailureCount = (runtime.frameFailureCount || 0) + 1;
             };
             runtime.planeMaterial.image = runtime.canvas;
             parts.frames.refreshProjectionImage(record, true);
@@ -266,11 +268,13 @@ export function createProjection({
       img.onload = () => {
         runtime.imageLoading = false;
         runtime.imageReady = true;
+        runtime.frameFailureCount = 0;
         runtime.imageStamp = Date.now();
       };
       img.onerror = () => {
         runtime.imageLoading = false;
         runtime.imageReady = false;
+        runtime.frameFailureCount = (runtime.frameFailureCount || 0) + 1;
       };
       runtime.image = img;
     }

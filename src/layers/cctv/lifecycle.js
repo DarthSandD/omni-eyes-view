@@ -365,11 +365,9 @@ export function createLifecycle({
         layerState._activeCameraId = layerState._records[0].camera.id;
         layerState._autoHopSuspended = false;
       }
-      const activeRecord = parts.selection.getActiveRecord();
-      if (activeRecord) {
-        parts.projection.ensureProjectionRuntime(activeRecord);
-        parts.frames.refreshProjectionImage(activeRecord, true);
-      }
+      // Passive enable: opening CCTV must NOT autoplay. The monitor plane /
+      // video for the default active camera starts only on an explicit
+      // activation (click, panel select, voice) — never from enable().
       parts.geometryQueue.startGeometryLoadQueue();
       parts.rendering.refreshCoverageStyles();
       parts.projection.startProjectionLoop();

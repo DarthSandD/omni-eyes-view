@@ -582,6 +582,12 @@ RTMP-only sources are not supported by this integration.
 
 </details>
 
+#### Indonesia CCTV
+
+12 public cameras across Jakarta (Janger toll ×4, Senayan Toll Gate), Serang (Walantaka Toll Gate), Bandung (Gedung Sate, Alun-Alun), Semarang (Simpang Lima, Lawang Sewu) and Surabaya (Tunjungan, Balai Kota), from `config/cctv_sources.indonesia.json`. On GitHub Pages (no `/api`) the CCTV layer falls back to the deployed worker proxy for catalog/frames/media, and the seed catalog still shows all 12 markers.
+
+Honest status: only the Serang Walantaka HLS feed was verified live (2026-10-19). The other HLS URLs from September have rotated or gone dead (Jakarta returns empty, Semarang/Bandung return 404), so those cameras show **STREAM DOWN** with a steady placeholder — never a faked frame — plus a clickable **WATCH LIVE** link to the public portal (Bina Marga / ATCS Bandung / PantauSemar / Lewatmana). Feed URLs need re-harvesting from those portals before the dead feeds can play again. Opening CCTV never autoplays; playback starts only when you activate a camera.
+
 ### 💸 What it actually costs
 
 Honest numbers, roughly, as of mid-2026 — always check the provider pricing pages:
