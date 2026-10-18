@@ -1,3 +1,4 @@
+import { createStandalonePlaceSearch } from './standalone/placeSearch.js';
 // Camera-framing mode contract for fly_to_location (field test 8 + rootcause doc §3):
 // parks/lakes/campuses and streets are NOT precise POIs — flying to "Zilker Park" at
 // building range (250 m) lands on a random rooftop. Pure mapping tests, no network.
@@ -15,7 +16,6 @@ import {
   flyToGlobeView,
   flyToPresetLocation,
   geocodeNavigationMode,
-  nominatimTypesFor,
   regionFramingPlan,
   REGION_SWATH_SPAN_KM,
   GLOBE_VIEW,
@@ -63,7 +63,7 @@ async function runSearch(viewer, options, { result = AUSTIN_RESULT, query = 'aus
     json: async () => ({ status: 'OK', results: [result] }),
   });
   try {
-    return await searchAndFlyTo(viewer, query, options);
+    return await searchAndFlyTo(viewer, query, { placeSearch: createStandalonePlaceSearch({ resolveApiKey: () => globalThis.window?.__GOOGLE_MAPS_API_KEY__ }), ...options });
   } finally {
     globalThis.fetch = priorFetch;
     if (hadWindow) globalThis.window = priorWindow;
@@ -599,124 +599,64 @@ test('search without an authority hook preserves the existing caller contract', 
   assert.equal(viewer.flights.length, 1);
 });
 
-// Keyless Nominatim fallback (static hosting: empty Google key, no /api proxy).
-// Run with: node --test src/locations.test.mjs
-const NOMINATIM_AUSTIN = [
-  {
-    lat: '30.2672',
-    lon: '-97.7431',
-    display_name: 'Austin, Travis County, Texas, USA',
-    addresstype: 'city',
-    boundingbox: ['30.0986', '30.5169', '-97.9389', '-97.5613'],
-  },
-];
+test('near-view recovery searches through the application place search', async () => {
+  // Recovery must use the place search the application configured, not the module default.
+  const viewer = stubViewer();
+  const placeSearch = createStandalonePlaceSearch({ resolveApiKey: () => 'test-key' });
+  let received = null;
+  await runSearch(viewer, {
+    placeSearch,
+    recoverNearView: async (...args) => {
+      received = args[4];
+      return null;
+    },
+  });
+  assert.equal(received, placeSearch);
+});
 
-function stubWindowAndFetch({ windowValue = {}, fetchImpl }) {
-  const hadWindow = Object.hasOwn(globalThis, 'window');
-  const priorWindow = globalThis.window;
-  const priorFetch = globalThis.fetch;
-  globalThis.window = windowValue;
-  globalThis.fetch = fetchImpl;
-  return () => {
-    globalThis.fetch = priorFetch;
-    if (hadWindow) globalThis.window = priorWindow;
-    else delete globalThis.window;
+test('a precise search without an outline frames against the resolved ground, not sea level', async () => {
+  // Camp Mabry field report: with no detailed outline (no configured Overpass)
+  // framing used the 250 m landmark range from a sea-level target, and the eye
+  // landed about 1 m above the 171 m mesh. The ground service now anchors it.
+  const viewer = stubViewer();
+  const resolved = [];
+  const warmed = [];
+  const ground = {
+    async resolveGroundFloorCellsBounded(points) {
+      resolved.push(...points);
+    },
+    cachedGroundFloor: () => 171,
+    warmGroundFloor: (points) => warmed.push(...points),
   };
-}
-
-test('nominatimTypesFor maps place kinds to framing modes', () => {
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'country' }), ['country', 'political']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'state' }), ['administrative_area_level_1', 'political']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'city' }), ['locality', 'political']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'suburb' }), ['neighborhood', 'political']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'road' }), ['route']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'park' }), ['park']);
-  assert.deepEqual(nominatimTypesFor({ addresstype: 'aeroway' }), []);
-  assert.deepEqual(nominatimTypesFor(null), []);
-});
-
-test('search without a Google key flies via keyless Nominatim', async () => {
-  const viewer = stubViewer();
-  const restore = stubWindowAndFetch({
-    windowValue: {},
-    fetchImpl: async (url) => {
-      assert.match(String(url), /^https:\/\/nominatim\.openstreetmap\.org\/search\?/);
-      return { ok: true, json: async () => NOMINATIM_AUSTIN };
+  const result = await runSearch(
+    viewer,
+    {
+      ground,
+      features: {
+        getFocusFootprints: async () => ({
+          unavailable: true,
+          retryable: false,
+          code: 'OVERPASS_NOT_CONFIGURED',
+        }),
+      },
+      recoverNearView: async () => null,
     },
-  });
-  try {
-    const result = await searchAndFlyTo(viewer, 'austin', {});
-    assert.equal(result.navigationMode, 'city-overview');
-    assert.equal(result.label, 'Austin, Travis County, Texas, USA');
-    assert.equal(viewer.flights.length, 1);
-  } finally {
-    restore();
-  }
-});
-
-test('a Google miss falls through to Nominatim instead of reporting not-found', async () => {
-  const viewer = stubViewer();
-  const seen = [];
-  const restore = stubWindowAndFetch({
-    windowValue: { __GOOGLE_MAPS_API_KEY__: 'test-key' },
-    fetchImpl: async (url) => {
-      seen.push(String(url));
-      if (String(url).startsWith('https://maps.googleapis.com/')) {
-        return { json: async () => ({ status: 'ZERO_RESULTS', results: [] }) };
-      }
-      return { ok: true, json: async () => NOMINATIM_AUSTIN };
+    {
+      query: 'Camp Mabry',
+      result: {
+        formatted_address: 'Camp Mabry, Austin, TX',
+        types: ['point_of_interest', 'establishment'],
+        geometry: { location: { lat: 30.3125, lng: -97.765 } },
+      },
     },
-  });
-  try {
-    const result = await searchAndFlyTo(viewer, 'austin', {});
-    assert.equal(result.navigationMode, 'city-overview');
-    assert.ok(seen.some((u) => u.startsWith('https://maps.googleapis.com/')));
-    assert.ok(seen.some((u) => u.startsWith('https://nominatim.openstreetmap.org/')));
-  } finally {
-    restore();
-  }
-});
-
-test('a Google network failure falls through to Nominatim', async () => {
-  const viewer = stubViewer();
-  const restore = stubWindowAndFetch({
-    windowValue: { __GOOGLE_MAPS_API_KEY__: 'test-key' },
-    fetchImpl: async (url) => {
-      if (String(url).startsWith('https://maps.googleapis.com/')) throw new Error('down');
-      return { ok: true, json: async () => NOMINATIM_AUSTIN };
-    },
-  });
-  try {
-    const result = await searchAndFlyTo(viewer, 'austin', {});
-    assert.equal(result.navigationMode, 'city-overview');
-  } finally {
-    restore();
-  }
-});
-
-test('Nominatim no-match returns null (caller toasts Location not found)', async () => {
-  const viewer = stubViewer();
-  const restore = stubWindowAndFetch({
-    windowValue: {},
-    fetchImpl: async () => ({ ok: true, json: async () => [] }),
-  });
-  try {
-    assert.equal(await searchAndFlyTo(viewer, 'zzzz-no-such-place', {}), null);
-    assert.equal(viewer.flights.length, 0);
-  } finally {
-    restore();
-  }
-});
-
-test('Nominatim network failure throws (caller toasts Search failed)', async () => {
-  const viewer = stubViewer();
-  const restore = stubWindowAndFetch({
-    windowValue: {},
-    fetchImpl: async () => { throw new Error('offline'); },
-  });
-  try {
-    await assert.rejects(() => searchAndFlyTo(viewer, 'austin', {}), /offline/);
-  } finally {
-    restore();
-  }
+  );
+  assert.equal(result.navigationMode, 'precise-place');
+  assert.equal(result.outlineUnavailable, true);
+  assert.equal(resolved.length, 1);
+  assert.equal(warmed.length, 1);
+  const flight = viewer.flights[0];
+  const target = Cesium.Cartographic.fromCartesian(flight.sphere.center);
+  assert.ok(Math.abs(target.height - (171 + 30)) < 0.5, `target ${target.height}`);
+  const eye = target.height + flight.offset.range * Math.sin(-flight.offset.pitch);
+  assert.ok(eye > 171 + 100, `eye ${eye} must clear the 171 m surface`);
 });

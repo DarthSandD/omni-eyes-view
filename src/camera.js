@@ -86,6 +86,7 @@ export function flyToUserLocation(viewer, latitude, longitude, rangeMeters = 150
 }
 /**
  * Set camera to Austin on load with a cinematic fly-in.
+ * @returns {Function} Cancels the pending or active startup flight.
  */
 export function flyToAustin(viewer) {
   // Start from a high altitude, then fly down
@@ -99,7 +100,8 @@ export function flyToAustin(viewer) {
   });
 
   // Cinematic fly-in after a brief pause
-  setTimeout(() => {
+  const timer = setTimeout(() => {
+    if (viewer.isDestroyed()) return;
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(-97.7431, 30.2672, 600),
       orientation: {
@@ -111,4 +113,8 @@ export function flyToAustin(viewer) {
       easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     });
   }, 500);
+  return () => {
+    clearTimeout(timer);
+    if (!viewer.isDestroyed()) viewer.camera.cancelFlight();
+  };
 }

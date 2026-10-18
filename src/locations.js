@@ -1,180 +1,20 @@
+import { rangeForBoundingSphere } from './data/cameraFraming.js';
+import { isUnavailableCapability } from './sources/capability.js';
+import { createOverpassFeatureSource } from './sources/overpassFeatures.js';
+import { applicationServices } from './services/application.js';
 import * as Cesium from 'cesium';
-import { viewportBias, placesNearViewRecovery } from './annotations/annotationResolver.js';
-import { fetchWithProxyFallback, OVERPASS_DIRECT_MIRRORS } from './data/staticDirect.js';
+import { greatCircleKm } from './geoDistance.js';
+import {
+  viewportBias,
+  placesNearViewRecovery,
+} from './annotations/annotationResolver.js';
+import { unavailablePlaceSearch } from './search/placeSearch.js';
+import { cancelCameraArrival } from './data/cameraArrival.js';
+import { guardCameraAboveGround } from './cameraGroundGuard.js';
+import { CITY_POIS } from './cityPois.js';
 
-/**
- * Points of Interest per city.
- * Each city has 5 POIs; the first is the default fly-to landmark.
- *
- * Field reference:
- *   alt     — RANGE (distance from target in meters), NOT absolute altitude
- *   heading — optimal camera heading in degrees (0=N, 90=E, 180=S, 270=W)
- *   pitch   — camera tilt in degrees (negative = looking down)
- *   buildingHeight — estimated height of landmark center above ground (meters)
- */
-export const CITY_POIS = {
-  austin: {
-    name: 'Austin',
-    groundElevation: 150, // meters above WGS84 ellipsoid
-    viewBounds: { southwest: { lat: 30.10, lng: -97.95 }, northeast: { lat: 30.52, lng: -97.55 } },
-    pois: [
-      { name: 'Texas State Capitol', lat: 30.2747, lon: -97.7403, alt: 550, pitch: -28, heading: 180, buildingHeight: 35 },
-      { name: 'Frost Bank Tower', lat: 30.2674, lon: -97.7434, alt: 550, pitch: -22, heading: 30, buildingHeight: 80 },
-      { name: 'Pennybacker Bridge', lat: 30.3451, lon: -97.7951, alt: 500, pitch: -25, heading: 90, buildingHeight: 40 },
-      { name: 'The Jenga Tower', lat: 30.2642, lon: -97.7500, alt: 500, pitch: -18, heading: 45, buildingHeight: 60 },
-      { name: 'UT Tower', lat: 30.2862, lon: -97.7394, alt: 500, pitch: -22, heading: 180, buildingHeight: 50 },
-    ],
-  },
-  sf: {
-    name: 'San Francisco',
-    groundElevation: 15,
-    viewBounds: { southwest: { lat: 37.70, lng: -122.53 }, northeast: { lat: 37.84, lng: -122.35 } },
-    pois: [
-      { name: 'Golden Gate Bridge', lat: 37.8199, lon: -122.4783, alt: 1400, pitch: -20, heading: 45, buildingHeight: 100 },
-      { name: 'Transamerica Pyramid', lat: 37.7952, lon: -122.4028, alt: 500, pitch: -25, heading: 30, buildingHeight: 85 },
-      { name: 'Salesforce Tower', lat: 37.7897, lon: -122.3972, alt: 680, pitch: -25, heading: 330, buildingHeight: 100 },
-      { name: 'Alcatraz Island', lat: 37.8267, lon: -122.4230, alt: 800, pitch: -30, heading: 0, buildingHeight: 20 },
-      { name: 'Coit Tower', lat: 37.8024, lon: -122.4058, alt: 420, pitch: -30, heading: 45, buildingHeight: 30 },
-    ],
-  },
-  nyc: {
-    name: 'New York',
-    groundElevation: 10,
-    viewBounds: { southwest: { lat: 40.477, lng: -74.259 }, northeast: { lat: 40.918, lng: -73.700 } },
-    pois: [
-      { name: 'Statue of Liberty', lat: 40.6892, lon: -74.0445, alt: 450, pitch: -25, heading: 315, buildingHeight: 45 },
-      {
-        name: 'Empire State Building',
-        lat: 40.7484,
-        lon: -73.9857,
-        alt: 850,
-        pitch: -12,
-        heading: 30,
-        buildingHeight: 130,
-        buildingBounds: { height: 443, width: 130, depth: 75 },
-      },
-      { name: 'One World Trade Center', lat: 40.7127, lon: -74.0134, alt: 850, pitch: -25, heading: 0, buildingHeight: 170 },
-      { name: 'Brooklyn Bridge', lat: 40.7061, lon: -73.9969, alt: 850, pitch: -25, heading: 45, buildingHeight: 40 },
-      { name: 'Chrysler Building', lat: 40.7516, lon: -73.9755, alt: 700, pitch: -20, heading: 225, buildingHeight: 100 },
-    ],
-  },
-  tokyo: {
-    name: 'Tokyo',
-    groundElevation: 40,
-    viewBounds: { southwest: { lat: 35.52, lng: 139.55 }, northeast: { lat: 35.90, lng: 139.92 } },
-    pois: [
-      { name: 'Tokyo Tower', lat: 35.6586, lon: 139.7454, alt: 850, pitch: -25, heading: 0, buildingHeight: 110 },
-      { name: 'Tokyo Skytree', lat: 35.7101, lon: 139.8107, alt: 900, pitch: -25, heading: 30, buildingHeight: 200 },
-      { name: 'Imperial Palace', lat: 35.6852, lon: 139.7528, alt: 900, pitch: -35, heading: 0, buildingHeight: 20 },
-      { name: 'Senso-ji Temple', lat: 35.7148, lon: 139.7967, alt: 400, pitch: -30, heading: 180, buildingHeight: 25 },
-      { name: 'Mode Gakuen Cocoon Tower', lat: 35.6929, lon: 139.6925, alt: 350, pitch: -20, heading: 30, buildingHeight: 70 },
-    ],
-  },
-  london: {
-    name: 'London',
-    groundElevation: 15,
-    viewBounds: { southwest: { lat: 51.28, lng: -0.51 }, northeast: { lat: 51.70, lng: 0.33 } },
-    pois: [
-      { name: 'Tower Bridge', lat: 51.5055, lon: -0.0754, alt: 400, pitch: -25, heading: 270, buildingHeight: 65 },
-      { name: 'The Shard', lat: 51.5045, lon: -0.0865, alt: 850, pitch: -20, heading: 0, buildingHeight: 100 },
-      { name: 'Big Ben / Parliament', lat: 51.5007, lon: -0.1246, alt: 600, pitch: -25, heading: 180, buildingHeight: 50 },
-      { name: "St. Paul's Cathedral", lat: 51.5138, lon: -0.0984, alt: 400, pitch: -30, heading: 270, buildingHeight: 55 },
-      { name: 'The Gherkin', lat: 51.5145, lon: -0.0803, alt: 350, pitch: -20, heading: 30, buildingHeight: 60 },
-    ],
-  },
-  paris: {
-    name: 'Paris',
-    groundElevation: 35,
-    viewBounds: { southwest: { lat: 48.815, lng: 2.224 }, northeast: { lat: 48.902, lng: 2.470 } },
-    pois: [
-      { name: 'Eiffel Tower', lat: 48.8584, lon: 2.2945, alt: 750, pitch: -25, heading: 315, buildingHeight: 150 },
-      { name: 'Arc de Triomphe', lat: 48.8738, lon: 2.2950, alt: 400, pitch: -28, heading: 45, buildingHeight: 25 },
-      { name: 'Notre-Dame', lat: 48.8530, lon: 2.3499, alt: 400, pitch: -25, heading: 225, buildingHeight: 35 },
-      { name: 'Sacré-Cœur', lat: 48.8867, lon: 2.3431, alt: 400, pitch: -30, heading: 180, buildingHeight: 40 },
-      { name: 'Louvre Pyramid', lat: 48.8606, lon: 2.3376, alt: 500, pitch: -35, heading: 0, buildingHeight: 10 },
-    ],
-  },
-  dubai: {
-    name: 'Dubai',
-    groundElevation: 5,
-    viewBounds: { southwest: { lat: 24.95, lng: 54.90 }, northeast: { lat: 25.35, lng: 55.55 } },
-    pois: [
-      { name: 'Burj Khalifa', lat: 25.1972, lon: 55.2744, alt: 600, pitch: -20, heading: 200, buildingHeight: 270 },
-      { name: 'Burj Al Arab', lat: 25.1412, lon: 55.1853, alt: 500, pitch: -25, heading: 90, buildingHeight: 100 },
-      { name: 'Palm Jumeirah', lat: 25.1124, lon: 55.1390, alt: 1200, pitch: -40, heading: 0, buildingHeight: 20 },
-      { name: 'Dubai Frame', lat: 25.2350, lon: 55.3003, alt: 400, pitch: -25, heading: 270, buildingHeight: 75 },
-      { name: 'Museum of the Future', lat: 25.2197, lon: 55.2806, alt: 350, pitch: -20, heading: 30, buildingHeight: 35 },
-    ],
-  },
-  dc: {
-    name: 'Washington DC',
-    groundElevation: 10,
-    viewBounds: { southwest: { lat: 38.79, lng: -77.12 }, northeast: { lat: 38.995, lng: -76.91 } },
-    pois: [
-      { name: 'US Capitol', lat: 38.8897, lon: -77.0091, alt: 550, pitch: -25, heading: 270, buildingHeight: 45 },
-      { name: 'Washington Monument', lat: 38.8895, lon: -77.0353, alt: 500, pitch: -30, heading: 0, buildingHeight: 85 },
-      { name: 'Lincoln Memorial', lat: 38.8893, lon: -77.0502, alt: 400, pitch: -25, heading: 90, buildingHeight: 20 },
-      { name: 'Pentagon', lat: 38.8711, lon: -77.0559, alt: 800, pitch: -40, heading: 0, buildingHeight: 20 },
-      { name: 'Jefferson Memorial', lat: 38.8814, lon: -77.0365, alt: 400, pitch: -30, heading: 0, buildingHeight: 25 },
-    ],
-  },
-  jakarta: {
-    name: 'Jakarta',
-    groundElevation: 8,
-    viewBounds: { southwest: { lat: -6.36, lng: 106.68 }, northeast: { lat: -6.09, lng: 106.95 } },
-    pois: [
-      { name: 'Monas (National Monument)', lat: -6.1754, lon: 106.8227, alt: 600, pitch: -25, heading: 0, buildingHeight: 65 },
-      { name: 'Bundaran HI', lat: -6.1949, lon: 106.8231, alt: 500, pitch: -25, heading: 180, buildingHeight: 40 },
-      { name: 'Kota Tua (Fatahillah)', lat: -6.1352, lon: 106.8133, alt: 400, pitch: -30, heading: 90, buildingHeight: 20 },
-      { name: 'GBK Stadium', lat: -6.2186, lon: 106.8029, alt: 600, pitch: -30, heading: 0, buildingHeight: 35 },
-      { name: 'Senayan South Gate', lat: -6.2260, lon: 106.7980, alt: 450, pitch: -25, heading: 0, buildingHeight: 20 },
-      { name: 'Manggarai Water Gate', lat: -6.2083, lon: 106.8500, alt: 450, pitch: -30, heading: 180, buildingHeight: 15 },
-      { name: 'Senayan Toll Gate', lat: -6.2290, lon: 106.7960, alt: 450, pitch: -25, heading: 90, buildingHeight: 15 },
-      { name: 'Soekarno-Hatta Airport T3', lat: -6.1256, lon: 106.6559, alt: 800, pitch: -35, heading: 90, buildingHeight: 25 },
-    ],
-  },
-  serang: {
-    name: 'Serang',
-    groundElevation: 25,
-    viewBounds: { southwest: { lat: -6.22, lng: 106.05 }, northeast: { lat: -6.02, lng: 106.25 } },
-    pois: [
-      { name: 'Alun-Alun Kota Serang', lat: -6.1198, lon: 106.1503, alt: 400, pitch: -25, heading: 0, buildingHeight: 15 },
-      { name: 'Banten Lama Heritage Zone', lat: -6.0375, lon: 106.1557, alt: 450, pitch: -30, heading: 180, buildingHeight: 20 },
-      { name: 'Ciceri Junction', lat: -6.1310, lon: 106.1580, alt: 400, pitch: -25, heading: 270, buildingHeight: 15 },
-      { name: 'Walantaka Toll Gate', lat: -6.1400, lon: 106.2050, alt: 450, pitch: -25, heading: 90, buildingHeight: 15 },
-    ],
-  },
-  bandung: {
-    name: 'Bandung',
-    groundElevation: 768,
-    viewBounds: { southwest: { lat: -6.98, lng: 107.54 }, northeast: { lat: -6.84, lng: 107.70 } },
-    pois: [
-      { name: 'Gedung Sate', lat: -6.9025, lon: 107.6186, alt: 500, pitch: -25, heading: 180, buildingHeight: 30 },
-      { name: 'Alun-Alun Bandung', lat: -6.9218, lon: 107.6069, alt: 450, pitch: -25, heading: 0, buildingHeight: 20 },
-      { name: 'Dago Junction', lat: -6.8850, lon: 107.6130, alt: 450, pitch: -25, heading: 180, buildingHeight: 20 },
-    ],
-  },
-  semarang: {
-    name: 'Semarang',
-    groundElevation: 4,
-    viewBounds: { southwest: { lat: -7.06, lng: 110.33 }, northeast: { lat: -6.93, lng: 110.50 } },
-    pois: [
-      { name: 'Simpang Lima', lat: -6.9903, lon: 110.4229, alt: 500, pitch: -25, heading: 0, buildingHeight: 25 },
-      { name: 'Lawang Sewu', lat: -6.9843, lon: 110.4108, alt: 450, pitch: -25, heading: 90, buildingHeight: 25 },
-      { name: 'Pelabuhan Tanjung Emas', lat: -6.9480, lon: 110.4250, alt: 600, pitch: -30, heading: 0, buildingHeight: 20 },
-    ],
-  },
-  surabaya: {
-    name: 'Surabaya',
-    groundElevation: 5,
-    viewBounds: { southwest: { lat: -7.36, lng: 112.62 }, northeast: { lat: -7.18, lng: 112.82 } },
-    pois: [
-      { name: 'Tunjungan', lat: -7.2597, lon: 112.7380, alt: 500, pitch: -25, heading: 0, buildingHeight: 25 },
-      { name: 'Balai Kota Surabaya', lat: -7.2499, lon: 112.7395, alt: 450, pitch: -25, heading: 180, buildingHeight: 25 },
-      { name: 'Suramadu Bridge South', lat: -7.2200, lon: 112.7800, alt: 700, pitch: -30, heading: 0, buildingHeight: 40 },
-    ],
-  },
-};
+/** Newest landmark arrival; an older post-arrival ground guard yields to it. */
+let arrivalGeneration = 0;
 
 /**
  * Absolute full-earth camera preset for the zoom_to_globe voice tool. The height
@@ -201,7 +41,11 @@ export function flyToGlobeView(viewer, options = {}) {
   const latitude = Cesium.Math.toDegrees(carto.latitude);
   viewer.camera.cancelFlight();
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, GLOBE_VIEW.heightM),
+    destination: Cesium.Cartesian3.fromDegrees(
+      longitude,
+      latitude,
+      GLOBE_VIEW.heightM,
+    ),
     orientation: {
       heading: 0,
       pitch: Cesium.Math.toRadians(GLOBE_VIEW.pitchDeg),
@@ -243,9 +87,12 @@ export const LOCATIONS = Object.entries(CITY_POIS).map(([id, city]) => ({
  * @param {number} options.buildingHeight - Estimated landmark center height above ground (default 30)
  * @param {number} options.groundElevation - Fallback ground elevation when terrain isn't loaded (default 0)
  * @param {number} options.duration - Flight duration in seconds (default 3.0)
+ * @param {{cachedGroundFloor?: Function, warmGroundFloor?: Function}} [options.ground] -
+ *   Optional ground-floor service; its cached elevation outranks `groundElevation`
  * @returns {{ targetPosition: Cesium.Cartesian3 }} The computed target for orbit use
  */
 export function flyToLandmark(viewer, lat, lon, options = {}) {
+  cancelCameraArrival(viewer);
   const {
     range = 500,
     pitch = -30,
@@ -257,32 +104,58 @@ export function flyToLandmark(viewer, lat, lon, options = {}) {
     onComplete = null,
     onCancel = null,
     buildingBounds = null,
+    ground = null,
   } = options;
 
   // Sample terrain height (sync — uses loaded tiles; 0 if globe/terrain not ready)
   const targetCartographic = Cesium.Cartographic.fromDegrees(lon, lat);
   const sampledHeight = viewer.scene.globe?.getHeight(targetCartographic);
 
-  // Use sampled height if available, otherwise fall back to pre-baked city ground elevation.
-  // Google 3D Tiles don't populate globe terrain, so first fly-to always gets the fallback.
-  const terrainHeight = (sampledHeight != null && sampledHeight > 0) ? sampledHeight : groundElevation;
+  // Use sampled height if available, otherwise the cached ground-floor
+  // elevation (same ellipsoidal datum), then the pre-baked city elevation.
+  // Google 3D Tiles don't populate globe terrain, and the preset defaults to sea
+  // level, so without the ground-floor read an uncurated destination was framed
+  // as if it stood on the ocean and the eye landed underground.
+  const realGround = ground?.cachedGroundFloor?.(lat, lon);
+  const terrainHeight =
+    sampledHeight != null && sampledHeight > 0
+      ? sampledHeight
+      : Number.isFinite(realGround)
+        ? realGround
+        : groundElevation;
+  // Warm the cell so the next nearby arrival is already correct.
+  try {
+    ground?.warmGroundFloor?.([{ lat, lon }]);
+  } catch {
+    /* best-effort prefetch */
+  }
+  const generation = ++arrivalGeneration;
 
   const bounds = normalizeBuildingBounds(buildingBounds);
-  const targetHeight = bounds ? terrainHeight + bounds.height / 2 : terrainHeight + buildingHeight;
+  const targetHeight = bounds
+    ? terrainHeight + bounds.height / 2
+    : terrainHeight + buildingHeight;
   const targetPosition = Cesium.Cartesian3.fromDegrees(lon, lat, targetHeight);
   const boundingRadius = bounds ? buildingBoundingRadius(bounds) : 0;
   const framingRange = bounds
-    ? Math.max(rangeForBoundingSphere(viewer, boundingRadius), boundingRadius * 1.35)
+    ? Math.max(
+        rangeForBoundingSphere(viewer, boundingRadius),
+        boundingRadius * 1.35,
+      )
     : range;
 
   const hpr = new Cesium.HeadingPitchRange(
     Cesium.Math.toRadians(heading),
     Cesium.Math.toRadians(pitch),
-    framingRange
+    framingRange,
   );
 
   if (typeof onStart === 'function') {
-    try { onStart(); } catch { /* no-op */ }
+    try {
+      onStart();
+    } catch {
+      /* no-op */
+    }
   }
 
   // Fly to target, then lock with lookAt for guaranteed centering
@@ -294,16 +167,36 @@ export function flyToLandmark(viewer, lat, lon, options = {}) {
       complete: () => {
         viewer.camera.lookAt(targetPosition, hpr);
         viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        // Framing used a predicted ground height. Once tiles stream in, measure
+        // the rendered surface and lift the eye if it is buried or pressed
+        // against it; a newer arrival or a manual gesture ends the check.
+        try {
+          guardCameraAboveGround(
+            viewer,
+            { lat, lon },
+            { isStale: () => generation !== arrivalGeneration },
+          );
+        } catch {
+          /* best-effort */
+        }
         if (typeof onComplete === 'function') {
-          try { onComplete(); } catch { /* no-op */ }
+          try {
+            onComplete();
+          } catch {
+            /* no-op */
+          }
         }
       },
       cancel: () => {
         if (typeof onCancel === 'function') {
-          try { onCancel(); } catch { /* no-op */ }
+          try {
+            onCancel();
+          } catch {
+            /* no-op */
+          }
         }
       },
-    }
+    },
   );
 
   return {
@@ -321,7 +214,11 @@ export function flyToLandmark(viewer, lat, lon, options = {}) {
 export function flyToPresetLocation(viewer, locationId, options = {}) {
   const city = CITY_POIS[locationId];
   if (!city) return null;
-  if (options.viewMode === 'overview' && !finitePositive(options.range) && city.viewBounds) {
+  if (
+    options.viewMode === 'overview' &&
+    !finitePositive(options.range) &&
+    city.viewBounds
+  ) {
     return flyToViewportBounds(viewer, city.viewBounds, {
       duration: options.duration,
       onStart: options.onStart,
@@ -365,7 +262,10 @@ const POI_STOPWORDS = new Set(['the', 'a', 'an', 'at', 'of', 'in', 'on', 'to']);
 /** Significant lowercased word set of a name (punctuation stripped, stopwords dropped). */
 function poiNameTokens(s) {
   return new Set(
-    String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+    String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
       .filter((w) => w && !POI_STOPWORDS.has(w)),
   );
 }
@@ -389,7 +289,8 @@ export function findPoiByName(query) {
       const name = poiNameTokens(poi.name);
       if (name.size < 2) return; // single-word POI names are too ambiguous to match loosely
       const fullyNamed = [...name].every((w) => q.has(w));
-      if (fullyNamed && (!best || name.size > best.size)) best = { cityId, index, size: name.size };
+      if (fullyNamed && (!best || name.size > best.size))
+        best = { cityId, index, size: name.size };
     });
   }
   return best ? { cityId: best.cityId, index: best.index } : null;
@@ -398,154 +299,52 @@ export function findPoiByName(query) {
 /** Distinguishes an authority veto from a genuine not-found result. */
 export const CANCELLED_SEARCH = Object.freeze({ cancelled: true });
 
-/** Keyless OpenStreetMap geocoder endpoint (no API key required). */
-const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
-
 /**
- * Read the configured Google Maps API key without throwing outside a bundler.
- * `import.meta.env` is a build-time define — plain node (unit tests) has no
- * `env` on it, so the read is guarded.
- * @returns {string|undefined}
- */
-function googleMapsApiKey() {
-  if (typeof window !== 'undefined' && window.__GOOGLE_MAPS_API_KEY__) {
-    return window.__GOOGLE_MAPS_API_KEY__;
-  }
-  try {
-    return import.meta.env.GOOGLE_MAPS_API_KEY || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Viewport-biased Google geocode, normalized to { lat, lng, label, types, viewport }.
- * Returns null on no-match; throws on network failure (caller falls through to Nominatim).
- */
-async function geocodeWithGoogle(viewer, query, apiKey) {
-  // Viewport-biased geocode — the same bias annotationResolver's geocodePlace uses:
-  // "Sixth Street" spoken over Austin must prefer the Sixth Street on screen, not a
-  // same-named road in another city (or the wrong end of town — the W 6th vs E 6th bug).
-  let url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
-  const bias = viewportBias(viewer);
-  if (bias) url += `&bounds=${bias}`;
-  const response = await fetch(url);
-  const data = await response.json();
-
-  const hit = (data.status === 'OK' && data.results?.length) ? data.results[0] : null;
-  if (!hit) return null;
-  return {
-    lat: hit.geometry.location.lat,
-    lng: hit.geometry.location.lng,
-    label: hit.formatted_address,
-    types: hit.types || [],
-    viewport: hit.geometry.bounds || hit.geometry.viewport || null,
-  };
-}
-
-/**
- * Map a Nominatim hit to Google-style geocode `types` so the existing
- * camera-framing modes (geocodeNavigationMode) keep working: cities frame
- * their viewport, streets frame their corridor, unknown features stay precise.
- * Exported for tests.
- * @param {{ class?: string, type?: string, addresstype?: string }} hit
- * @returns {string[]}
- */
-export function nominatimTypesFor(hit) {
-  const kind = String(hit?.addresstype || hit?.type || '').toLowerCase();
-  if (kind === 'country') return ['country', 'political'];
-  if (['state', 'province', 'region', 'county', 'district', 'territory'].includes(kind)) {
-    return ['administrative_area_level_1', 'political'];
-  }
-  if (['city', 'town', 'village', 'hamlet', 'municipality', 'borough'].includes(kind)) {
-    return ['locality', 'political'];
-  }
-  if (['suburb', 'neighbourhood', 'neighborhood', 'quarter', 'postcode', 'postal_code'].includes(kind)) {
-    return ['neighborhood', 'political'];
-  }
-  if (['road', 'street', 'footway', 'cycleway', 'path', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'residential', 'unclassified'].includes(kind)) {
-    return ['route'];
-  }
-  if (['park', 'forest', 'wood', 'meadow', 'grass', 'water', 'bay', 'strait', 'peak', 'aerodrome', 'university', 'college', 'campus'].includes(kind)) {
-    return ['park'];
-  }
-  return [];
-}
-
-/**
- * Keyless OpenStreetMap Nominatim geocode, normalized to the same
- * { lat, lng, label, types, viewport } shape as geocodeWithGoogle.
- * Returns null on no-match; throws ONLY on network failure so the caller can
- * surface 'Search failed' instead of 'Location not found'.
- */
-export async function geocodeWithNominatim(query) {
-  const url = `${NOMINATIM_SEARCH_URL}?format=jsonv2&addressdetails=0&limit=1&q=${encodeURIComponent(query)}`;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(`Nominatim search failed: HTTP ${response.status}`);
-  const data = await response.json();
-  const hit = Array.isArray(data) ? data[0] : null;
-  if (!hit || !Number.isFinite(Number(hit.lat)) || !Number.isFinite(Number(hit.lon))) return null;
-  const box = Array.isArray(hit.boundingbox) ? hit.boundingbox.map(Number) : [];
-  const viewport = box.length === 4 && box.every(Number.isFinite)
-    ? { southwest: { lat: box[0], lng: box[2] }, northeast: { lat: box[1], lng: box[3] } }
-    : null;
-  return {
-    lat: Number(hit.lat),
-    lng: Number(hit.lon),
-    label: hit.display_name || query,
-    types: nominatimTypesFor(hit),
-    viewport,
-  };
-}
-
-/**
- * Geocode a place name using Google Geocoding API, then fly there at a scale
+ * Geocode a place name through the supplied service, then fly there at a scale
  * appropriate to the request. Countries and cities use their viewport by
  * default; precise landmarks/buildings use close landmark framing.
- *
- * Keyless fallback: when no Google key is configured (static hosting ships an
- * empty build-time key and has no /api proxy backend) or the Google lookup
- * misses/fails, the query falls through to OpenStreetMap Nominatim, which
- * needs no key. Toast semantics are unchanged: null → 'Location not found',
- * throw → 'Search failed'.
  */
 export async function searchAndFlyTo(viewer, query, options = {}) {
-  const apiKey = googleMapsApiKey();
-
-  const beforeFly = typeof options.beforeFly === 'function' ? options.beforeFly : null;
-  const mayFly = () => beforeFly === null || beforeFly() !== false;
-
-  // Google first when a key exists; keyless Nominatim when the key is missing
-  // or the Google lookup misses/fails.
-  let result = null;
-  if (apiKey) {
-    try {
-      result = await geocodeWithGoogle(viewer, query, apiKey);
-    } catch {
-      result = null;
-    }
-  }
-  if (!result) result = await geocodeWithNominatim(query);
-
+  const { placeSearch = unavailablePlaceSearch, signal } = options;
+  signal?.throwIfAborted();
+  const beforeFly =
+    typeof options.beforeFly === 'function' ? options.beforeFly : null;
+  const mayFly = () =>
+    !signal?.aborted && (beforeFly === null || beforeFly() !== false);
+  const outcome = await placeSearch.geocode(query, {
+    bias: viewportBias(viewer),
+    signal,
+  });
+  signal?.throwIfAborted();
+  const result = outcome.place;
   let lat = result?.lat;
   let lng = result?.lng;
-  let label = result ? result.label : null;
+  let label = result?.label || query;
   let types = result?.types || [];
-  let viewport = result ? result.viewport : null;
+  let viewport = result?.viewport || null;
 
-  // Places-near-view recovery (annotationResolver's twin): a missed geocode, or one
-  // that landed implausibly far from the view centre, snaps back to a view-biased
-  // Places hit within the trust bound — "the Capitol" means the one on screen.
-  const recovered = await placesNearViewRecovery(viewer, query, result ? { lat, lon: lng } : null);
+  // Nearby landmark recovery retains precedence over a fallback geocoder hit,
+  // but never over an exact answer. Recovery exists to rescue a name that a
+  // geocoder read too broadly; a typed coordinate or a bundled name has no
+  // ambiguity to rescue, and letting a nearby Places hit win would send an
+  // operator who typed "43.1731, -79.0384" to whatever is closest instead.
+  const recovered = result?.exact
+    ? null
+    : await (options.recoverNearView || placesNearViewRecovery)(
+        viewer,
+        query,
+        result && !outcome.fallbackUsed ? { lat, lon: lng } : null,
+        signal,
+        placeSearch,
+      );
+  signal?.throwIfAborted();
   if (recovered) {
     lat = recovered.lat;
     lng = recovered.lon;
-    label = recovered.label || label || query;
+    label = recovered.label || label;
     types = recovered.types || [];
     viewport = placesViewportToBounds(recovered.viewport) || viewport;
-  } else if (!result) {
-    return null;
-  }
+  } else if (!result) return null;
 
   const requestedRange = finitePositive(options.range);
   const duration = finitePositive(options.duration) || 3.0;
@@ -555,13 +354,17 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
 
   // Frame the geocode viewport for area-like modes — and for an EXPLICIT overview ask
   // ("give me an overview of X"), which previously fell through to building range.
-  if (!requestedRange && !options.forceClose
-      && (shouldFrameGeocodeViewport(navigationMode) || explicitOverview)) {
+  if (
+    !requestedRange &&
+    !options.forceClose &&
+    (shouldFrameGeocodeViewport(navigationMode) || explicitOverview)
+  ) {
     // Natural regions (mountain ranges, deserts, seas) geocode as area-overview with
     // enormous viewports — fitting the whole box flies the camera to space (owner field
     // test 2026-07-23, "Rocky Mountains"). Frame a capped oblique swath over the center
     // instead. Countries/states (region-overview) intentionally keep whole-place framing.
-    const swath = navigationMode === 'area-overview' ? regionFramingPlan(viewport) : null;
+    const swath =
+      navigationMode === 'area-overview' ? regionFramingPlan(viewport) : null;
     if (swath?.mode === 'swath') {
       if (!mayFly()) return CANCELLED_SEARCH;
       flyToLandmark(viewer, swath.centerLat, swath.centerLng, {
@@ -569,6 +372,7 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
         pitch: swath.pitchDeg,
         heading: swath.headingDeg,
         buildingHeight: 0,
+        ground: options.ground || null,
         duration,
         onStart: options.onStart,
         onComplete: options.onComplete,
@@ -592,8 +396,10 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
     // request for the whole administrative area, so the sanity gate stands down:
     // it exists to guess what an ambiguous place name meant, and there is nothing
     // left to guess once the user has said.
-    const gateFraming = !explicitOverview
-      && (navigationMode === 'city-overview' || navigationMode === 'region-overview');
+    const gateFraming =
+      !explicitOverview &&
+      (navigationMode === 'city-overview' ||
+        navigationMode === 'region-overview');
     const framedViewport = gateFraming
       ? placeFramingViewport(viewport, lat, lng, types)
       : viewport;
@@ -617,16 +423,44 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
 
   const shouldResolveBuilding = navigationMode === 'precise-place';
   const buildingBounds = shouldResolveBuilding
-    ? await resolveBuildingBounds(lat, lng, query)
+    ? await resolveBuildingBounds(
+        lat,
+        lng,
+        query,
+        options.features ??
+          (options.boundaries
+            ? createOverpassFeatureSource({
+                boundarySource: options.boundaries,
+              })
+            : undefined),
+        options.signal,
+      )
     : null;
   const range = requestedRange || defaultRangeForNavigationMode(navigationMode);
+  // Resolve the real ground height before framing, for the same reason as the
+  // coordinate branch: with no detailed outline, a searched place on elevated
+  // ground would otherwise be framed against sea level. Resolved before the
+  // mayFly() gate so a cancellation still wins the race.
+  const flyLat = buildingBounds?.lat ?? lat;
+  const flyLon = buildingBounds?.lon ?? lng;
+  const ground = options.ground || null;
+  await ground?.resolveGroundFloorCellsBounded?.([
+    { lat: flyLat, lon: flyLon },
+  ]);
+  const searchGroundElevation = ground?.cachedGroundFloor?.(flyLat, flyLon);
   if (!mayFly()) return CANCELLED_SEARCH;
-  const flight = flyToLandmark(viewer, buildingBounds?.lat ?? lat, buildingBounds?.lon ?? lng, {
+  const flight = flyToLandmark(viewer, flyLat, flyLon, {
     range,
     pitch: buildingPitch(buildingBounds),
     heading: 30,
     buildingHeight: 30,
-    buildingBounds,
+    buildingBounds: isUnavailableCapability(buildingBounds)
+      ? null
+      : buildingBounds,
+    ...(Number.isFinite(searchGroundElevation)
+      ? { groundElevation: searchGroundElevation }
+      : {}),
+    ground,
     duration,
     onStart: options.onStart,
     onComplete: options.onComplete,
@@ -636,8 +470,13 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
     label,
     navigationMode: requestedRange
       ? 'explicit-range'
-      : (options.forceClose ? navigationMode.replace('-overview', '-close') : navigationMode),
+      : options.forceClose
+        ? navigationMode.replace('-overview', '-close')
+        : navigationMode,
     rangeM: Math.round(flight.range),
+    ...(isUnavailableCapability(buildingBounds)
+      ? { outlineUnavailable: true, message: 'Detailed outline unavailable' }
+      : {}),
   };
 }
 
@@ -646,7 +485,12 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
 function placesViewportToBounds(vp) {
   const low = vp?.low;
   const high = vp?.high;
-  if (![low?.latitude, low?.longitude, high?.latitude, high?.longitude].every(Number.isFinite)) return null;
+  if (
+    ![low?.latitude, low?.longitude, high?.latitude, high?.longitude].every(
+      Number.isFinite,
+    )
+  )
+    return null;
   return {
     southwest: { lat: low.latitude, lng: low.longitude },
     northeast: { lat: high.latitude, lng: high.longitude },
@@ -663,33 +507,35 @@ function placesViewportToBounds(vp) {
 export function geocodeNavigationMode(types) {
   const values = new Set(types);
   if (
-    values.has('country')
-    || values.has('administrative_area_level_1')
-    || values.has('administrative_area_level_2')
+    values.has('country') ||
+    values.has('administrative_area_level_1') ||
+    values.has('administrative_area_level_2')
   ) {
     return 'region-overview';
   }
-  if (values.has('locality') || values.has('postal_town')) return 'city-overview';
+  if (values.has('locality') || values.has('postal_town'))
+    return 'city-overview';
   if (
-    values.has('sublocality')
-    || values.has('sublocality_level_1')
-    || values.has('neighborhood')
-    || values.has('postal_code')
+    values.has('sublocality') ||
+    values.has('sublocality_level_1') ||
+    values.has('neighborhood') ||
+    values.has('postal_code')
   ) {
     return 'neighborhood-close';
   }
-  if (values.has('route') || values.has('intersection')) return 'street-corridor';
+  if (values.has('route') || values.has('intersection'))
+    return 'street-corridor';
   if (
-    values.has('park')
-    || values.has('natural_feature')
-    || values.has('campus')
-    || values.has('university')
-    || values.has('airport')
-    || values.has('stadium')
-    || values.has('amusement_park')
-    || values.has('zoo')
-    || values.has('cemetery')
-    || values.has('shopping_mall')
+    values.has('park') ||
+    values.has('natural_feature') ||
+    values.has('campus') ||
+    values.has('university') ||
+    values.has('airport') ||
+    values.has('stadium') ||
+    values.has('amusement_park') ||
+    values.has('zoo') ||
+    values.has('cemetery') ||
+    values.has('shopping_mall')
   ) {
     return 'area-overview';
   }
@@ -725,10 +571,10 @@ export function viewportMetrics(viewport) {
   const southwest = viewport?.southwest;
   const northeast = viewport?.northeast;
   if (
-    !Number.isFinite(southwest?.lat)
-    || !Number.isFinite(southwest?.lng)
-    || !Number.isFinite(northeast?.lat)
-    || !Number.isFinite(northeast?.lng)
+    !Number.isFinite(southwest?.lat) ||
+    !Number.isFinite(southwest?.lng) ||
+    !Number.isFinite(northeast?.lat) ||
+    !Number.isFinite(northeast?.lng)
   ) {
     return null;
   }
@@ -736,13 +582,14 @@ export function viewportMetrics(viewport) {
   const latSpanDeg = northeast.lat - southwest.lat;
   // Longitude span measured the short way round so an antimeridian-crossing box
   // (Pacific features) doesn't read as ~340° wide.
-  const lonSpanDeg = ((northeast.lng - southwest.lng) % 360 + 360) % 360;
+  const lonSpanDeg = (((northeast.lng - southwest.lng) % 360) + 360) % 360;
   const centerLat = (southwest.lat + northeast.lat) / 2;
   let centerLng = southwest.lng + lonSpanDeg / 2;
   if (centerLng > 180) centerLng -= 360;
 
   const latSpanKm = Math.abs(latSpanDeg) * KM_PER_DEGREE;
-  const lonSpanKm = lonSpanDeg * KM_PER_DEGREE * Math.cos(Cesium.Math.toRadians(centerLat));
+  const lonSpanKm =
+    lonSpanDeg * KM_PER_DEGREE * Math.cos(Cesium.Math.toRadians(centerLat));
   return {
     latSpanDeg,
     lonSpanDeg,
@@ -756,7 +603,7 @@ export function viewportMetrics(viewport) {
 
 /** Wrap a longitude in degrees into [-180, 180). */
 function wrapLongitude(lng) {
-  return ((lng + 180) % 360 + 360) % 360 - 180;
+  return ((((lng + 180) % 360) + 360) % 360) - 180;
 }
 
 /**
@@ -802,16 +649,6 @@ export const PLACE_ANCHOR_OFFSET_RATIO = 0.15;
  */
 const PLACE_FALLBACK_HALF_SPAN_KM = 20;
 
-/** Great-circle distance in km (small enough here that the spherical model is fine). */
-function greatCircleKm(lat1, lng1, lat2, lng2) {
-  const dLat = Cesium.Math.toRadians(lat2 - lat1);
-  const dLng = Cesium.Math.toRadians(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(Cesium.Math.toRadians(lat1)) * Math.cos(Cesium.Math.toRadians(lat2))
-      * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)));
-}
-
 /**
  * Sanity-gate a geocode viewport before framing it. Pure — exported for unit tests.
  *
@@ -833,20 +670,29 @@ function greatCircleKm(lat1, lng1, lat2, lng2) {
  * @param {string[]} [types] Raw geocode result types, used only for the country exemption.
  * @returns {{southwest:{lat:number,lng:number}, northeast:{lat:number,lng:number}}|null}
  */
-export function placeFramingViewport(viewport, anchorLat, anchorLng, types = []) {
+export function placeFramingViewport(
+  viewport,
+  anchorLat,
+  anchorLng,
+  types = [],
+) {
   if (Array.isArray(types) && types.includes('country')) return viewport;
   const metrics = viewportMetrics(viewport);
   if (!metrics || metrics.spanKm <= PLACE_VIEWPORT_MAX_SPAN_KM) return viewport;
-  if (!Number.isFinite(anchorLat) || !Number.isFinite(anchorLng)) return viewport;
+  if (!Number.isFinite(anchorLat) || !Number.isFinite(anchorLng))
+    return viewport;
 
-  const offsetKm = greatCircleKm(anchorLat, anchorLng, metrics.centerLat, metrics.centerLng);
+  const offsetKm = greatCircleKm(
+    { lat: anchorLat, lon: anchorLng },
+    { lat: metrics.centerLat, lon: metrics.centerLng },
+  );
   if (offsetKm <= metrics.spanKm * PLACE_ANCHOR_OFFSET_RATIO) return viewport;
 
   const latHalfDeg = PLACE_FALLBACK_HALF_SPAN_KM / KM_PER_DEGREE;
   // Guard the cosine so a near-polar anchor cannot blow the longitude half-extent up.
   const cosLat = Math.max(0.05, Math.cos(Cesium.Math.toRadians(anchorLat)));
   const lngHalfDeg = PLACE_FALLBACK_HALF_SPAN_KM / (KM_PER_DEGREE * cosLat);
-  const wrapLng = (lng) => ((lng + 180) % 360 + 360) % 360 - 180;
+  const wrapLng = (lng) => ((((lng + 180) % 360) + 360) % 360) - 180;
   return {
     southwest: {
       lat: Math.max(-89.9, anchorLat - latHalfDeg),
@@ -899,8 +745,12 @@ function defaultRangeForNavigationMode(mode) {
 }
 
 function shouldFrameGeocodeViewport(mode) {
-  return mode === 'region-overview' || mode === 'city-overview'
-    || mode === 'area-overview' || mode === 'street-corridor';
+  return (
+    mode === 'region-overview' ||
+    mode === 'city-overview' ||
+    mode === 'area-overview' ||
+    mode === 'street-corridor'
+  );
 }
 
 function flyToViewportBounds(viewer, viewport, options = {}) {
@@ -915,10 +765,10 @@ function flyToViewportBounds(viewer, viewport, options = {}) {
   const southwest = viewport?.southwest;
   const northeast = viewport?.northeast;
   if (
-    !Number.isFinite(southwest?.lat)
-    || !Number.isFinite(southwest?.lng)
-    || !Number.isFinite(northeast?.lat)
-    || !Number.isFinite(northeast?.lng)
+    !Number.isFinite(southwest?.lat) ||
+    !Number.isFinite(southwest?.lng) ||
+    !Number.isFinite(northeast?.lat) ||
+    !Number.isFinite(northeast?.lng)
   ) {
     return false;
   }
@@ -935,17 +785,23 @@ function flyToViewportBounds(viewer, viewport, options = {}) {
   const paddedLonSpan = metrics.lonSpanDeg + longitudePadding * 2;
   const south = Math.max(-89.9, southwest.lat - latitudePadding);
   const north = Math.min(89.9, northeast.lat + latitudePadding);
-  const rectangle = paddedLonSpan >= 360
-    ? Cesium.Rectangle.fromDegrees(-180, south, 180, north)
-    : Cesium.Rectangle.fromDegrees(
-      wrapLongitude(southwest.lng - longitudePadding),
-      south,
-      wrapLongitude(southwest.lng + metrics.lonSpanDeg + longitudePadding),
-      north,
-    );
-  if (typeof beforeFly === 'function' && beforeFly() === false) return CANCELLED_SEARCH;
+  const rectangle =
+    paddedLonSpan >= 360
+      ? Cesium.Rectangle.fromDegrees(-180, south, 180, north)
+      : Cesium.Rectangle.fromDegrees(
+          wrapLongitude(southwest.lng - longitudePadding),
+          south,
+          wrapLongitude(southwest.lng + metrics.lonSpanDeg + longitudePadding),
+          north,
+        );
+  if (typeof beforeFly === 'function' && beforeFly() === false)
+    return CANCELLED_SEARCH;
   if (typeof onStart === 'function') {
-    try { onStart(); } catch { /* no-op */ }
+    try {
+      onStart();
+    } catch {
+      /* no-op */
+    }
   }
   viewer.camera.flyTo({
     destination: rectangle,
@@ -953,19 +809,31 @@ function flyToViewportBounds(viewer, viewport, options = {}) {
     endTransform: Cesium.Matrix4.IDENTITY,
     complete: () => {
       if (typeof onComplete === 'function') {
-        try { onComplete(); } catch { /* no-op */ }
+        try {
+          onComplete();
+        } catch {
+          /* no-op */
+        }
       }
     },
     cancel: () => {
       if (typeof onCancel === 'function') {
-        try { onCancel(); } catch { /* no-op */ }
+        try {
+          onCancel();
+        } catch {
+          /* no-op */
+        }
       }
     },
   });
   // Same short-way-round rule for the reported centre: averaging raw longitudes
   // puts a dateline-crossing box's centre on the opposite side of the planet.
   return {
-    targetPosition: Cesium.Cartesian3.fromDegrees(metrics.centerLng, metrics.centerLat, 0),
+    targetPosition: Cesium.Cartesian3.fromDegrees(
+      metrics.centerLng,
+      metrics.centerLat,
+      0,
+    ),
     boundingRadius: 0,
     range: null,
     viewBounds: viewport,
@@ -989,19 +857,6 @@ function buildingBoundingRadius(bounds) {
   return Math.hypot(halfHeight, halfWidth, halfDepth) * 1.18;
 }
 
-function rangeForBoundingSphere(viewer, radius) {
-  const frustum = viewer.camera.frustum;
-  const verticalFov = Number(frustum?.fov) || Cesium.Math.toRadians(60);
-  const aspectRatio = Math.max(0.5, Number(frustum?.aspectRatio) || 1);
-  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspectRatio);
-  const limitingFov = Math.min(verticalFov, horizontalFov);
-  // Target 57% sphere occupancy so perspective still leaves at least 40%
-  // measured roof-to-base breathing room in ordinary oblique building views.
-  const occupiedViewportFraction = 0.57;
-  const desiredAngularRadius = limitingFov * occupiedViewportFraction / 2;
-  return radius / Math.sin(desiredAngularRadius) * 1.05;
-}
-
 function buildingPitch(bounds) {
   if (!bounds) return -25;
   const footprint = Math.max(bounds.width, bounds.depth);
@@ -1012,40 +867,27 @@ function buildingPitch(bounds) {
   return -32;
 }
 
-async function resolveBuildingBounds(lat, lon, query) {
-  const overpassQuery = `
-    [out:json][timeout:10];
-    (
-      way(around:180,${lat},${lon})["building"];
-      relation(around:180,${lat},${lon})["building"];
-      way(around:180,${lat},${lon})["man_made"];
-      relation(around:180,${lat},${lon})["man_made"];
-      way(around:180,${lat},${lon})["tourism"="attraction"];
-      relation(around:180,${lat},${lon})["tourism"="attraction"];
-    );
-    out tags center geom;
-  `;
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 6000);
+async function resolveBuildingBounds(
+  lat,
+  lon,
+  query,
+  features = applicationServices.features,
+  signal,
+) {
   try {
-    // Static hosting: proxy first, then public Overpass mirrors direct.
-    const { response } = await fetchWithProxyFallback(
-      '/api/overpass',
-      [...OVERPASS_DIRECT_MIRRORS],
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(overpassQuery)}`,
-        signal: controller.signal,
-      },
+    const candidates = await features.getFocusFootprints(
+      { lat, lon },
+      { signal },
     );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return selectBuildingBounds(data?.elements || [], lat, lon, query);
+    if (isUnavailableCapability(candidates)) return candidates;
+    return selectBuildingBounds(
+      Array.isArray(candidates) ? candidates : [],
+      lat,
+      lon,
+      query,
+    );
   } catch {
     return null;
-  } finally {
-    window.clearTimeout(timeout);
   }
 }
 
@@ -1053,31 +895,37 @@ function selectBuildingBounds(elements, targetLat, targetLon, query) {
   const queryWords = normalizedWords(query);
   const candidates = [];
   for (const element of elements) {
-    const coordinates = elementCoordinates(element);
+    const coordinates = element.coordinates;
     if (coordinates.length < 3) continue;
     const bounds = coordinateBounds(coordinates, targetLat);
     if (!bounds || bounds.width < 2 || bounds.depth < 2) continue;
-    const tags = element.tags || {};
+    const names = element.names;
     const center = element.center || averageCoordinate(coordinates);
-    const distanceM = approximateDistanceM(targetLat, targetLon, center.lat, center.lon);
-    const nameWords = normalizedWords([
-      tags.name,
-      tags['name:en'],
-      tags.official_name,
-      tags.alt_name,
-    ].filter(Boolean).join(' '));
+    const distanceM = approximateDistanceM(
+      targetLat,
+      targetLon,
+      center.lat,
+      center.lon,
+    );
+    const nameWords = normalizedWords(
+      [names.primary, names.english, names.official, names.alternate]
+        .filter(Boolean)
+        .join(' '),
+    );
     const nameScore = wordOverlap(queryWords, nameWords);
     const containsTarget = pointInPolygon(targetLon, targetLat, coordinates);
-    const height = buildingHeightFromTags(tags, bounds);
+    const height =
+      element.heightM ??
+      Math.max(12, Math.min(80, Math.max(bounds.width, bounds.depth) * 0.8));
     candidates.push({
       lat: center.lat,
       lon: center.lon,
       height,
       width: bounds.width,
       depth: bounds.depth,
-      osmName: tags.name || tags['name:en'] || null,
-      osmType: element.type,
-      osmId: element.id,
+      osmName: names.primary || names.english || null,
+      osmType: element.provenance?.type,
+      osmId: element.provenance?.id,
       score: nameScore * 1000 + (containsTarget ? 500 : 0) - distanceM,
     });
   }
@@ -1085,18 +933,6 @@ function selectBuildingBounds(elements, targetLat, targetLon, query) {
   candidates.sort((a, b) => b.score - a.score);
   const { score, ...best } = candidates[0];
   return best;
-}
-
-function elementCoordinates(element) {
-  if (Array.isArray(element.geometry)) {
-    return element.geometry.filter((point) => Number.isFinite(point?.lat) && Number.isFinite(point?.lon));
-  }
-  if (!Array.isArray(element.members)) return [];
-  return element.members.flatMap((member) => (
-    Array.isArray(member.geometry)
-      ? member.geometry.filter((point) => Number.isFinite(point?.lat) && Number.isFinite(point?.lon))
-      : []
-  ));
 }
 
 function coordinateBounds(coordinates, latitude) {
@@ -1112,27 +948,14 @@ function coordinateBounds(coordinates, latitude) {
   };
 }
 
-function buildingHeightFromTags(tags, bounds) {
-  const explicitHeight = parseMeters(tags.height || tags['building:height']);
-  if (explicitHeight) return explicitHeight;
-  const levels = Number.parseFloat(tags['building:levels']);
-  const roofHeight = parseMeters(tags['roof:height']) || 0;
-  if (Number.isFinite(levels) && levels > 0) return levels * 3.3 + roofHeight;
-  return Math.max(12, Math.min(80, Math.max(bounds.width, bounds.depth) * 0.8));
-}
-
-function parseMeters(value) {
-  if (value == null) return 0;
-  const number = Number.parseFloat(String(value).replace(',', '.'));
-  if (!Number.isFinite(number) || number <= 0) return 0;
-  return /\b(ft|feet|foot)\b/i.test(String(value)) ? number * 0.3048 : number;
-}
-
 function averageCoordinate(coordinates) {
-  const total = coordinates.reduce((sum, point) => ({
-    lat: sum.lat + point.lat,
-    lon: sum.lon + point.lon,
-  }), { lat: 0, lon: 0 });
+  const total = coordinates.reduce(
+    (sum, point) => ({
+      lat: sum.lat + point.lat,
+      lon: sum.lon + point.lon,
+    }),
+    { lat: 0, lon: 0 },
+  );
   return {
     lat: total.lat / coordinates.length,
     lon: total.lon / coordinates.length,
@@ -1140,13 +963,15 @@ function averageCoordinate(coordinates) {
 }
 
 function normalizedWords(value) {
-  return new Set(String(value || '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 2));
+  return new Set(
+    String(value || '')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 2),
+  );
 }
 
 function wordOverlap(left, right) {
@@ -1159,11 +984,18 @@ function wordOverlap(left, right) {
 
 function pointInPolygon(lon, lat, coordinates) {
   let inside = false;
-  for (let index = 0, previous = coordinates.length - 1; index < coordinates.length; previous = index++) {
+  for (
+    let index = 0, previous = coordinates.length - 1;
+    index < coordinates.length;
+    previous = index++
+  ) {
     const a = coordinates[index];
     const b = coordinates[previous];
-    const intersects = ((a.lat > lat) !== (b.lat > lat)) &&
-      (lon < (b.lon - a.lon) * (lat - a.lat) / ((b.lat - a.lat) || Number.EPSILON) + a.lon);
+    const intersects =
+      a.lat > lat !== b.lat > lat &&
+      lon <
+        ((b.lon - a.lon) * (lat - a.lat)) / (b.lat - a.lat || Number.EPSILON) +
+          a.lon;
     if (intersects) inside = !inside;
   }
   return inside;
@@ -1171,10 +1003,11 @@ function pointInPolygon(lon, lat, coordinates) {
 
 function approximateDistanceM(latA, lonA, latB, lonB) {
   const latitudeScale = 111320;
-  const longitudeScale = latitudeScale * Math.cos(Cesium.Math.toRadians((latA + latB) / 2));
+  const longitudeScale =
+    latitudeScale * Math.cos(Cesium.Math.toRadians((latA + latB) / 2));
   return Math.hypot(
     (latB - latA) * latitudeScale,
-    (lonB - lonA) * longitudeScale
+    (lonB - lonA) * longitudeScale,
   );
 }
 

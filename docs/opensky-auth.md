@@ -1,6 +1,6 @@
 # OpenSky Auth Setup
 
-Omni Eyes View uses explicit auth modes for `/api/opensky`:
+Omni Eyes View uses explicit auth modes for `/api/flights`:
 
 - `OPENSKY_AUTH_MODE=oauth` (default, recommended)
 - `OPENSKY_AUTH_MODE=auto` (OAuth first, then Basic fallback)
@@ -54,7 +54,7 @@ OPENSKY_AUTH_MODE=basic ./scripts/dev-fresh.sh
 Inspect proxy headers:
 
 ```bash
-curl -si http://localhost:4173/api/opensky | grep -iE 'HTTP/|X-OpenSky-Auth'
+curl -si http://localhost:4173/api/flights | grep -iE 'HTTP/|X-OpenSky-Auth'
 ```
 
 Useful reasons:
@@ -64,3 +64,10 @@ Useful reasons:
 - `basic_invalid_credentials`: username/password rejected
 - `missing_basic_creds`: basic mode missing user/pass
 - `rate_limited`: OpenSky throttling
+
+## CORS notes (browser-direct sources)
+
+- CelesTrak is open for browser-direct fetches (no CORS gate).
+- OpenSky and adsb.lol are browser-restricted: call them through this app's
+  same-origin `/api` proxy (or a configured `GEV_API_BASE` worker), never
+  directly from page JavaScript.

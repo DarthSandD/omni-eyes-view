@@ -13,7 +13,7 @@ import {
   isPushToTalkKey,
   shouldHandlePushToTalkKeyDown,
   shouldIgnoreVoiceButtonClick,
-} from './gevRealtime.js';
+} from './realtimeInputPolicy.js';
 
 /** Spoken when no SpeechRecognition constructor exists (e.g. Firefox). */
 export const EMBEDDED_VOICE_UNSUPPORTED_REPLY =

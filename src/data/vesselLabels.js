@@ -4,6 +4,8 @@
  * after the vessel cards moved out of their dedicated canvas renderer.
  */
 
+import { t, msg } from '../i18n/index.js';
+
 export const VESSEL_OVERLAY_SOURCE_ID = 'ais-live-vessels';
 /** Existing selector grid size; one ambient winner is retained per cell. */
 export const VESSEL_LABEL_GRID_PX = 118;
@@ -13,6 +15,8 @@ export const VESSEL_DEFAULT_LABEL_LIMIT = 900;
 export const VESSEL_OVERLAY_MAX_COHORT = VESSEL_DEFAULT_LABEL_LIMIT;
 /** Existing ambient vessel-card distance fade reaches zero at 5000 km. */
 export const VESSEL_CARD_FADE_DISTANCE_M = 5_000_000;
+/** Share of VESSEL_CARD_FADE_DISTANCE_M at which ambient cards begin to fade. */
+export const VESSEL_CARD_FADE_START_RATIO = 0.7;
 
 /**
  * AIS type family → chevron hue + card accent. Single source of truth for
@@ -20,22 +24,85 @@ export const VESSEL_CARD_FADE_DISTANCE_M = 5_000_000;
  */
 const TYPE_STYLES = [
   { pattern: /tanker/i, css: '#ffb347', accent: '255, 179, 71' },
-  { pattern: /cargo|container|bulk|carrier/i, css: '#39d5ff', accent: '57, 213, 255' },
-  { pattern: /passenger|ferry|cruise/i, css: '#ff7adf', accent: '255, 122, 223' },
+  {
+    pattern: /cargo|container|bulk|carrier/i,
+    css: '#39d5ff',
+    accent: '57, 213, 255',
+  },
+  {
+    pattern: /passenger|ferry|cruise/i,
+    css: '#ff7adf',
+    accent: '255, 122, 223',
+  },
   { pattern: /fishing/i, css: '#7cff9b', accent: '124, 255, 155' },
-  { pattern: /tug|tow|pilot|supply|service/i, css: '#f7f0a3', accent: '247, 240, 163' },
+  {
+    pattern: /tug|tow|pilot|supply|service/i,
+    css: '#f7f0a3',
+    accent: '247, 240, 163',
+  },
 ];
 const DEFAULT_STYLE = { css: '#39d5ff', accent: '57, 213, 255' };
 
 const NUMERIC_TYPE_SPECIALS = {
-  30: 'FISHING', 31: 'TOWING', 32: 'TOWING', 33: 'DREDGER', 34: 'DIVE OPS',
-  35: 'MILITARY', 36: 'SAILING', 37: 'PLEASURE',
-  50: 'PILOT', 51: 'SAR', 52: 'TUG', 53: 'PORT TENDER', 54: 'ANTI-POLLUTION',
-  55: 'LAW ENFORCE', 58: 'MEDICAL',
+  30: 'FISHING',
+  31: 'TOWING',
+  32: 'TOWING',
+  33: 'DREDGER',
+  34: 'DIVE OPS',
+  35: 'MILITARY',
+  36: 'SAILING',
+  37: 'PLEASURE',
+  50: 'PILOT',
+  51: 'SAR',
+  52: 'TUG',
+  53: 'PORT TENDER',
+  54: 'ANTI-POLLUTION',
+  55: 'LAW ENFORCE',
+  58: 'MEDICAL',
 };
 const NUMERIC_TYPE_FAMILIES = {
-  4: 'HIGH-SPEED', 6: 'PASSENGER', 7: 'CARGO', 8: 'TANKER', 9: 'OTHER',
+  4: 'HIGH-SPEED',
+  6: 'PASSENGER',
+  7: 'CARGO',
+  8: 'TANKER',
+  9: 'OTHER',
 };
+
+// Card text for the type tokens above. The tokens stay English: TYPE_STYLES
+// and tests match on them.
+const TYPE_DISPLAY_KEYS = Object.freeze({
+  FISHING: msg('FISHING'),
+  TOWING: msg('TOWING'),
+  DREDGER: msg('DREDGER'),
+  'DIVE OPS': msg('DIVE OPS'),
+  MILITARY: msg('MILITARY'),
+  SAILING: msg('SAILING'),
+  PLEASURE: msg('PLEASURE'),
+  PILOT: msg('PILOT'),
+  SAR: msg('SAR'),
+  TUG: msg('TUG'),
+  'PORT TENDER': msg('PORT TENDER'),
+  'ANTI-POLLUTION': msg('ANTI-POLLUTION'),
+  'LAW ENFORCE': msg('LAW ENFORCE'),
+  MEDICAL: msg('MEDICAL'),
+  'HIGH-SPEED': msg('HIGH-SPEED'),
+  PASSENGER: msg('PASSENGER'),
+  CARGO: msg('CARGO'),
+  TANKER: msg('TANKER'),
+  OTHER: msg('OTHER'),
+});
+
+/**
+ * Card-display form of a normalized AIS type: known tokens translate through
+ * the catalog; free-text types and unknown codes render unchanged.
+ * @param {string} type Raw AIS type.
+ * @returns {string}
+ */
+export function displayVesselType(type) {
+  const normalized = normalizeVesselType(type);
+  const key = TYPE_DISPLAY_KEYS[normalized.toUpperCase()];
+  return key ? t(key) : normalized;
+}
 
 /**
  * Resolve an AIS type to display text: bare numeric ship-type codes map to
@@ -76,13 +143,22 @@ function styleForType(type) {
  * @param {number} [rowLimit=900] Configured source row ceiling.
  * @returns {number}
  */
-export function vesselOverlayCohortLimit(width, height, rowLimit = VESSEL_DEFAULT_LABEL_LIMIT) {
+export function vesselOverlayCohortLimit(
+  width,
+  height,
+  rowLimit = VESSEL_DEFAULT_LABEL_LIMIT,
+) {
   const w = Number(width);
   const h = Number(height);
   const requested = Number(rowLimit);
   if (!(w > 0) || !(h > 0) || !(requested > 0)) return 0;
-  const gridCapacity = Math.ceil(w / VESSEL_LABEL_GRID_PX) * Math.ceil(h / VESSEL_LABEL_GRID_PX);
-  return Math.min(VESSEL_OVERLAY_MAX_COHORT, Math.floor(requested), gridCapacity);
+  const gridCapacity =
+    Math.ceil(w / VESSEL_LABEL_GRID_PX) * Math.ceil(h / VESSEL_LABEL_GRID_PX);
+  return Math.min(
+    VESSEL_OVERLAY_MAX_COHORT,
+    Math.floor(requested),
+    gridCapacity,
+  );
 }
 
 /**
@@ -93,10 +169,13 @@ export function vesselOverlayCohortLimit(width, height, rowLimit = VESSEL_DEFAUL
  * @param {number} [fadeDistance=5000000] Ambient distance-fade endpoint.
  * @returns {Object}
  */
-export function applyVesselOverlayPolicy(card, fadeDistance = VESSEL_CARD_FADE_DISTANCE_M) {
+export function applyVesselOverlayPolicy(
+  card,
+  fadeDistance = VESSEL_CARD_FADE_DISTANCE_M,
+) {
   const selected = card?.selected === true;
   const rawGap = Number(card?.gapPx) || 10;
-  const gapPx = Math.max(12, rawGap + 8);
+  const gapPx = Math.max(selected ? 28 : 12, rawGap + 8);
   return {
     ...card,
     variant: selected ? 'selected' : 'card',
@@ -105,10 +184,11 @@ export function applyVesselOverlayPolicy(card, fadeDistance = VESSEL_CARD_FADE_D
     cardStyle: 'tactical',
     gapPx,
     leaderOffsetPx: Math.max(2, gapPx - 6),
-    verticalOnly: true,
+    // Selected detail cards may move beside the contact to clear solid panels.
+    verticalOnly: !selected,
     viewportMargin: 4,
     maxDistance: selected ? Number.POSITIVE_INFINITY : fadeDistance,
-    distanceFadeStartRatio: 0.7,
+    distanceFadeStartRatio: VESSEL_CARD_FADE_START_RATIO,
     edgeFade: 'keyhole',
     horizonCull: true,
     terrainOcclusion: false,

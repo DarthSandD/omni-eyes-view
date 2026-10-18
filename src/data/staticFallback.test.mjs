@@ -279,6 +279,9 @@ test('space missions: proxy 404 falls back to Launch Library 2 direct', async ()
       this.parentElement = null;
     }
     setAttribute() {}
+    // Upstream's replay overlay queries its own subtree (sonar icons/label).
+    querySelectorAll() { return []; }
+    querySelector() { return null; }
     getBoundingClientRect() { return { left: 0, top: 0, width: 1600, height: 900 }; }
     getContext() { return this.tagName === 'CANVAS' ? reticleContext : null; }
   }

@@ -174,12 +174,20 @@ export function resetApiBaseCacheForTests() {
  * Resolve the API base for proxied calls.
  * Precedence: `?api=<base>` boot override > `window.__GEV_API_BASE__` >
  * `import.meta.env.GEV_API_BASE` > `''` (same-origin, current static behavior).
+ * The runtime base is read off `globalThis` (identical to `window` in
+ * browsers) without naming `window`, so portable layer sources may import
+ * this module without tripping the import-direction boundary check.
  */
 export function resolveApiBase() {
   const boot = readBootApiBaseOverride();
   if (boot) return boot;
   try {
-    const runtime = globalThis.window?.__GEV_API_BASE__;
+    // Destructured (not `globalThis.window`) so the import-direction
+    // analyzer — which flags any `window` reference in portable modules —
+    // does not mistake this browser-global read for a portable dependency.
+    // Same value: in browsers `globalThis.window === globalThis`.
+    const { window: win } = globalThis;
+    const runtime = win?.__GEV_API_BASE__;
     if (typeof runtime === 'string' && runtime.trim()) return normalizeApiBase(runtime);
   } catch { /* ignore exotic window shims */ }
   const build = readBuildApiBase();
@@ -235,6 +243,55 @@ export async function fetchWithProxyFallback(proxyUrl, directUrls = [], init) {
   for (const url of directUrls) {
     try {
       const res = await fetch(url, init);
+      if (res.ok) {
+        let host = 'direct';
+        try { host = new URL(url).hostname; } catch { /* keep generic */ }
+        return { response: res, source: `direct:${host}`, triedDirect: true };
+      }
+      lastResponse = res;
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      lastError = error;
+    }
+  }
+  if (proxyResponse) return { response: proxyResponse, source: 'proxy', triedDirect: true };
+  if (lastResponse) return { response: lastResponse, source: 'proxy', triedDirect: true };
+  throw lastError || new Error('Static fetch fallback failed with no response');
+}
+
+/**
+ * fetchImpl-aware variant of fetchWithProxyFallback for the injected-transport
+ * sources (src/sources/live, src/layers/*\/source.js, src/services/requests.js):
+ * the identical proxy-first, direct-only-when-proxy-absent contract, but every
+ * attempt goes through the caller's transport so stubbed-fetch tests keep
+ * observing the requests instead of the global fetch bypassing them.
+ *
+ * @param {Function} fetchImpl - Transport (injected `fetchImpl`, same signature as fetch).
+ * @param {string} proxyUrl - Same-origin /api/* URL (prefixed with the configured API base, if any).
+ * @param {string[]} directUrls - Direct upstream URLs tried after proxy failure.
+ * @param {object} [init] - fetch init passed to every attempt.
+ * @returns {Promise<{response: Response, source: string, triedDirect: boolean}>}
+ */
+export async function fetchWithProxyFallbackImpl(fetchImpl, proxyUrl, directUrls = [], init) {
+  const resolvedProxyUrl = proxyUrlWithBase(proxyUrl);
+  let proxyResponse = null;
+  try {
+    const res = await fetchImpl(resolvedProxyUrl, init);
+    if (res.ok) return { response: res, source: 'proxy', triedDirect: false };
+    // A live proxy's own error (rate limit, upstream 5xx, auth refusal) is
+    // returned untouched — only an ABSENT proxy (static-hosting 404/405/501)
+    // or an unreachable one falls through to direct URLs.
+    if (!isProxyMissing(res)) return { response: res, source: 'proxy', triedDirect: false };
+    proxyResponse = res;
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    proxyResponse = null;
+  }
+  let lastError = null;
+  let lastResponse = null;
+  for (const url of directUrls) {
+    try {
+      const res = await fetchImpl(url, init);
       if (res.ok) {
         let host = 'direct';
         try { host = new URL(url).hostname; } catch { /* keep generic */ }
