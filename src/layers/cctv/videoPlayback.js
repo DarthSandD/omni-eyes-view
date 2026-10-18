@@ -33,6 +33,8 @@ export function attachCctvVideo(
     onFailure = () => {},
     fetchImpl = globalThis.fetch,
     cryptoImpl = globalThis.crypto,
+    // Injectable only so the startup-timeout contract is unit-testable.
+    startupTimeoutMs = 30000,
   } = {},
 ) {
   // Preserve replay for existing finite video feeds; live HLS must not loop.
@@ -64,6 +66,7 @@ export function attachCctvVideo(
     hls?.destroy();
     hls = null;
     video.removeEventListener('canplay', play);
+    video.removeEventListener('playing', markPlaying);
     video.removeEventListener('error', fail);
     video.pause();
     video.removeAttribute('src');
@@ -80,9 +83,17 @@ export function attachCctvVideo(
     clearTimeout(startup);
     video.play().catch(() => {});
   };
+  // 'canplay' is the normal startup signal, but a missed 'canplay' must not
+  // kill a stream that is demonstrably playing: 'playing' clears the timer
+  // too, so only a genuinely stalled decoder hits the 30s fail path.
+  const markPlaying = () => {
+    if (disposed) return;
+    clearTimeout(startup);
+  };
   video.addEventListener('canplay', play);
+  video.addEventListener('playing', markPlaying);
   video.addEventListener('error', fail);
-  startup = setTimeout(fail, 30000);
+  startup = setTimeout(fail, startupTimeoutMs);
   const ready = (async () => {
     if (feedType !== 'hls') {
       video.src = mediaUrl;

@@ -40,7 +40,7 @@ export function createStandaloneLayerSources(overrides = {}) {
       // serve from its own scheme.
       origin: () => globalThis.document?.baseURI ?? 'http://localhost',
     }),
-    cctv: createCctvSource(),
+    cctv: createCctvSource({ windowImpl: globalThis.window }),
     radio: createRadioSource(),
     traffic: createTrafficSource({ mapTiles }),
     transit: createTransitSource(),

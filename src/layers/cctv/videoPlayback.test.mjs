@@ -106,6 +106,36 @@ test('HLS starts on a plain-HTTP LAN page without crypto.randomUUID', async () =
   }
 });
 
+test('playing clears the startup timer even when canplay never fires', async () => {
+  // Regression: a detached <video> never fires 'canplay' in Chrome, so a
+  // stream that is demonstrably playing was killed by the 30s startup timer
+  // and the panel fell back to the synthetic frame. 'playing' must clear it.
+  let failures = 0;
+  const source = video();
+  const playback = attachCctvVideo(source, '/api/cctv/media/a', 'mp4', {
+    startupTimeoutMs: 50,
+    onFailure: () => failures++,
+    fetchImpl: async () => {},
+  });
+  source.dispatchEvent(new Event('playing'));
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(failures, 0);
+  playback.dispose();
+});
+
+test('no canplay and no playing still fails on startup timeout', async () => {
+  let failures = 0;
+  const source = video();
+  const playback = attachCctvVideo(source, '/api/cctv/media/a', 'mp4', {
+    startupTimeoutMs: 50,
+    onFailure: () => failures++,
+    fetchImpl: async () => {},
+  });
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(failures, 1);
+  playback.dispose();
+});
+
 test('finite video feeds retain looping while live HLS does not loop', async () => {
   for (const feedType of ['mp4', 'webm', 'hls']) {
     const source = video();

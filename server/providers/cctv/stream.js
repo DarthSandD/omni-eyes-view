@@ -9,7 +9,14 @@ export const HLS_LIMITS = Object.freeze({
   sessionBytes: 24 * 1024 * 1024,
   segments: 12,
   pollMs: 2000,
-  idleMs: 15000,
+  // A viewer goes quiet for a full buffer dwell: the puller serves cached
+  // segments instantly, so hls.js can buffer ~60s+ in seconds and then fetch
+  // nothing until it drains. The old 15s idle lease expired mid-playback,
+  // the session stopped, and the next segment fetch 404'd on the stale
+  // session token — video froze until hls.js refetched the playlist and
+  // started a new session. 120s comfortably exceeds the client's max buffer
+  // dwell while sessions stay bounded (2 sessions x 24MB).
+  idleMs: 120000,
   timeoutMs: 10000,
   readyMs: 12000,
 });

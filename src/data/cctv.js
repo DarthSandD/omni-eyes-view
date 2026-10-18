@@ -4,7 +4,7 @@ import { createSourceSlot } from '../sources/sourceSlot.js';
 import { createCctvSource } from '../layers/cctv/source.js';
 
 const sourceSlot = createSourceSlot(
-  createCctvSource(),
+  createCctvSource({ windowImpl: globalThis.window }),
   ['getCatalog', 'getHealth', 'getFrameUrl', 'getMediaUrl'],
   'Cctv source',
 );

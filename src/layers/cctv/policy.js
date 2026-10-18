@@ -32,6 +32,14 @@ export const IDLE_FRAME_REFRESH_MS = 60000;
  * issued until an explicit (re-)activation retries once (force). */
 export const CCTV_DEAD_FEED_FAILURES = 3;
 
+/** Video-decoder attach attempts before a video feed falls back to
+ * still-image mode (projection.js). One transient upstream hiccup must not
+ * kill video for the session; attempts retry with backoff. */
+export const MAX_VIDEO_ATTACH_ATTEMPTS = 3;
+
+/** Base delay for video-attach retries: attempt n waits base * 2^n ms. */
+export const VIDEO_ATTACH_RETRY_BASE_MS = 2000;
+
 export const PROJECTION_ACTIVE_REFRESH_MS = 10000;
 
 export const PROJECTION_IDLE_REFRESH_MS = 60000;

@@ -97,7 +97,13 @@ export function createCctvSource({
   windowImpl,
 } = {}) {
   const location = locationImpl ?? globalThis.location;
-  const win = windowImpl ?? globalThis.window;
+  // No globalThis.window fallback: this is a portable source module and the
+  // boundary check forbids reaching browser globals from source roots.
+  // Browser callers inject the window (src/data/cctv.js,
+  // src/standalone/layerSources.js); tools/Node callers omit it, in which
+  // case the window.__GEV_API_BASE__ override is simply unavailable and
+  // ?api= (via location) still works.
+  const win = windowImpl;
   // Build-time base (Vite `define` in build/vite.js; undefined under plain Node).
   const envApiBase =
     typeof import.meta !== 'undefined' &&

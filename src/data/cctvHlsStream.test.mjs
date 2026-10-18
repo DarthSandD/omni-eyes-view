@@ -107,6 +107,16 @@ test('shutdown cancels in-flight downloads and late responses cannot refill cach
   await assert.rejects(manager.ensure('a', base));
 });
 
+test('idle lease outlasts a full client buffer dwell', () => {
+  // Regression: the puller serves cached segments instantly, so hls.js can
+  // buffer ~60s+ in seconds and then fetch nothing until it drains. A 15s
+  // idle lease expired mid-playback, the session stopped, and the next
+  // segment fetch 404'd on the stale session token (video froze until hls.js
+  // refetched the playlist). The default must exceed the client's max
+  // buffer dwell (videoPlayback maxMaxBufferLength 30s + overshoot).
+  assert.ok(HLS_LIMITS.idleMs >= 120000);
+});
+
 test('idle cleanup stops all polling without a background sweep', async () => {
   let calls = 0;
   const manager = createHlsPuller({

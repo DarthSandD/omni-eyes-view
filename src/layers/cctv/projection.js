@@ -3,9 +3,11 @@ import * as Cesium from 'cesium';
 import {
   CCTV_PROJECTION_OVERLAY_SOURCE_ID,
   CCTV_PROJECTION_OVERLAY_SOURCE_OPTIONS,
+  MAX_VIDEO_ATTACH_ATTEMPTS,
   PLANE_OUTLINE_COLOR,
   PROJECTION_CANVAS_WIDTH,
   PROJECTION_CANVAS_HEIGHT,
+  VIDEO_ATTACH_RETRY_BASE_MS,
 } from './policy.js';
 
 export function createProjection({
@@ -156,6 +158,106 @@ export function createProjection({
   }
 
   /**
+   * Attaches a decoder for a video-feed projection runtime, retrying transient
+   * failures with backoff before falling back to still-image mode.
+   *
+   * Agency upstreams are flaky (slow/fragment-timeout hiccups): a single
+   * attach failure used to flip the runtime to image mode permanently, so one
+   * transient hiccup meant the synthetic frame for the rest of the session.
+   * Retries get a fresh <video> element and a fresh HLS lease each time;
+   * attachCctvVideo's dispose already released the failed attempt's lease.
+   * The retry timer is cleared on destroy, so a torn-down runtime never
+   * reattaches. After MAX_VIDEO_ATTACH_ATTEMPTS the runtime falls back to
+   * image mode exactly as before (frame endpoint + placeholder).
+   *
+   * @param {Object} record - Camera record.
+   * @param {Object} runtime - Projection runtime.
+   * @param {string} feedType - Normalized feed type.
+   * @param {number} attempt - Zero-based attempt counter.
+   */
+  function attachProjectionVideo(record, runtime, feedType, attempt) {
+    if (runtime.disposed) return;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+    video.preload = 'auto';
+    // Cesium sizes the video texture from the element's width/height
+    // attributes at first upload. Set them from the real stream dimensions
+    // and rebind on any resolution change (camera switch, adaptive source).
+    const bindVideoTexture = () => {
+      if (runtime.video !== video || !runtime.planeMaterial) return;
+      if (!(video.videoWidth > 0 && video.videoHeight > 0)) return;
+      video.width = video.videoWidth;
+      video.height = video.videoHeight;
+      runtime.planeMaterial.image = runtime.canvas;
+      runtime.planeMaterial.image = video;
+    };
+    video.addEventListener('loadedmetadata', bindVideoTexture);
+    video.addEventListener('resize', bindVideoTexture);
+    runtime.video = video;
+    // The video MUST live in the document for its media pipeline to run.
+    // Verified 2026-10-19: a detached <video> never fires 'canplay'
+    // (stuck at readyState 1 for 35s, same stream attached plays in ~8s),
+    // so attachCctvVideo's 30s startup timer killed every HLS feed and the
+    // panel fell back to the synthetic frame. Off-screen 1x1, never
+    // display:none (which stalls media the same way).
+    if (
+      typeof document !== 'undefined' &&
+      document.body &&
+      !video.isConnected
+    ) {
+      video.style.cssText =
+        'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+      video.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(video);
+    }
+    runtime.playback = attachCctvVideo(
+      video,
+      parts.frames.mediaUrlFor(record.camera),
+      feedType,
+      {
+        onFailure: () => {
+          if (runtime.disposed) return;
+          // The failed decoder's element leaves the document with it:
+          // dispose() (inside attachCctvVideo) stops it, this removes it.
+          video.remove?.();
+          runtime.video = null;
+          if (attempt + 1 < MAX_VIDEO_ATTACH_ATTEMPTS) {
+            clearTimeout(runtime.videoRetryTimer);
+            runtime.videoRetryTimer = setTimeout(
+              () => {
+                if (runtime.disposed) return;
+                attachProjectionVideo(record, runtime, feedType, attempt + 1);
+              },
+              VIDEO_ATTACH_RETRY_BASE_MS * 2 ** attempt,
+            );
+            parts.presentation.notifyListeners();
+            return;
+          }
+          runtime.mode = 'image';
+          runtime.image = new Image();
+          runtime.image.decoding = 'async';
+          runtime.image.onload = () => {
+            runtime.imageLoading = false;
+            runtime.imageReady = true;
+            runtime.frameFailureCount = 0;
+            runtime.imageStamp = Date.now();
+          };
+          runtime.image.onerror = () => {
+            runtime.imageLoading = false;
+            runtime.imageReady = false;
+            runtime.frameFailureCount = (runtime.frameFailureCount || 0) + 1;
+          };
+          runtime.planeMaterial.image = runtime.canvas;
+          parts.frames.refreshProjectionImage(record, true);
+          parts.presentation.notifyListeners();
+        },
+      },
+    );
+  }
+
+  /**
    * Creates the projection runtime for a camera record: an offscreen canvas,
    * the monitor plane plus associated host label, and either an
    * <img> or <video> element depending on the feed type.
@@ -214,53 +316,7 @@ export function createProjection({
     parts.frames.paintProjectionPlaceholder(ctx, record.camera);
 
     if (mode === 'video') {
-      const video = document.createElement('video');
-      video.muted = true;
-      video.playsInline = true;
-      video.crossOrigin = 'anonymous';
-      video.preload = 'auto';
-      // Cesium sizes the video texture from the element's width/height
-      // attributes at first upload. Set them from the real stream dimensions
-      // and rebind on any resolution change (camera switch, adaptive source).
-      const bindVideoTexture = () => {
-        if (runtime.video !== video || !runtime.planeMaterial) return;
-        if (!(video.videoWidth > 0 && video.videoHeight > 0)) return;
-        video.width = video.videoWidth;
-        video.height = video.videoHeight;
-        runtime.planeMaterial.image = runtime.canvas;
-        runtime.planeMaterial.image = video;
-      };
-      video.addEventListener('loadedmetadata', bindVideoTexture);
-      video.addEventListener('resize', bindVideoTexture);
-      runtime.video = video;
-      runtime.playback = attachCctvVideo(
-        video,
-        parts.frames.mediaUrlFor(record.camera),
-        feedType,
-        {
-          onFailure: () => {
-            if (runtime.disposed) return;
-            runtime.video = null;
-            runtime.mode = 'image';
-            runtime.image = new Image();
-            runtime.image.decoding = 'async';
-            runtime.image.onload = () => {
-              runtime.imageLoading = false;
-              runtime.imageReady = true;
-              runtime.frameFailureCount = 0;
-              runtime.imageStamp = Date.now();
-            };
-            runtime.image.onerror = () => {
-              runtime.imageLoading = false;
-              runtime.imageReady = false;
-              runtime.frameFailureCount = (runtime.frameFailureCount || 0) + 1;
-            };
-            runtime.planeMaterial.image = runtime.canvas;
-            parts.frames.refreshProjectionImage(record, true);
-            parts.presentation.notifyListeners();
-          },
-        },
-      );
+      attachProjectionVideo(record, runtime, feedType, 0);
     } else {
       const img = new Image();
       img.decoding = 'async';
@@ -329,6 +385,9 @@ export function createProjection({
   function destroyProjectionRuntime(runtime) {
     if (!runtime || runtime.disposed) return;
     runtime.disposed = true;
+    // A pending video-attach retry must never fire after teardown.
+    clearTimeout(runtime.videoRetryTimer);
+    runtime.videoRetryTimer = null;
     runtime.playback?.dispose();
     runtime.playback = null;
     if (runtime.image) {
@@ -340,6 +399,10 @@ export function createProjection({
       runtime.video.pause();
       runtime.video.removeAttribute('src');
       runtime.video.load();
+      // Paired with the off-screen DOM attach in createProjectionRuntime:
+      // a stale 1x1 video left in the document would keep a decoder alive.
+      runtime.video.remove?.();
+      runtime.video = null;
     }
     if (runtime.planeEntity && layerState._viewer) {
       layerState._viewer.entities.remove(runtime.planeEntity);
