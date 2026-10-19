@@ -61,6 +61,11 @@ export function createBrowserViteConfig({
   command,
 } = {}) {
   return {
+    // GitHub Pages serves this app under /omni-eyes-view/, so every built
+    // asset URL must carry that subpath prefix — otherwise the JS bundle
+    // 404s and the page stays white. GEV_BASE overrides the default:
+    // Cloudflare Pages serves from the root, so it builds with GEV_BASE=/.
+    base: process.env.GEV_BASE ?? '/omni-eyes-view/',
     plugins: [
       // First, so no provider route answers a Host the server does not allow.
       hostCheckPlugin(),
