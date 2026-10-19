@@ -237,6 +237,15 @@ export function createProjection({
           }
           runtime.mode = 'image';
           runtime.image = new Image();
+          // CORS-clean fetch is REQUIRED here, not optional. On GitHub Pages
+          // the frame endpoint is cross-origin (the worker proxy). Without
+          // crossOrigin the image loads opaque, drawImage() onto the
+          // projection canvas taints it, and Cesium's next texImage2D upload
+          // of that canvas throws SecurityError — which kills the whole
+          // Cesium render loop and leaves a black globe. With
+          // crossOrigin='anonymous' a non-CORS source fails to load instead
+          // (onerror → placeholder), which can never taint the canvas.
+          runtime.image.crossOrigin = 'anonymous';
           runtime.image.decoding = 'async';
           runtime.image.onload = () => {
             runtime.imageLoading = false;

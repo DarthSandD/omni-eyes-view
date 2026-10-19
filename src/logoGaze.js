@@ -111,7 +111,10 @@ export function initLogoGaze(root = document) {
 
   const loadInlineLogos = async () => {
     try {
-      const source = logos[0].dataset.logoSrc || '/logo.svg';
+      // Relative so it resolves under the deploy base (e.g.
+      // /omni-eyes-view/logo.svg on GitHub Pages). Vite rewrites <img src>
+      // but not data-* attributes, so an absolute /logo.svg here 404s.
+      const source = logos[0].dataset.logoSrc || 'logo.svg';
       const response = await window.fetch(source);
       if (!response.ok) return;
       const markup = await response.text();
