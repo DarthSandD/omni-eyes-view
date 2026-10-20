@@ -1,3 +1,41 @@
+# Omni Eyes View
+
+**Omni Eyes View: photorealistic Cesium world viewer.**
+
+A photorealistic 3D globe in the browser, built on CesiumJS, with live public data layered on one Earth: flights, satellites, vessels, earthquakes, active fires, weather, public cameras, and world radio. It starts with no API keys, using Esri satellite imagery and keyless terrain. Add a free Cesium ion token for Google Photorealistic 3D cities, or a Google Maps key for the direct route.
+
+**Live demo:**
+
+- GitHub Pages: https://darthsandd.github.io/omni-eyes-view/
+- Cloudflare Pages: https://omnieyes.pages.dev/
+
+**Run it locally:**
+
+```bash
+git clone https://github.com/DarthSandD/omni-eyes-view.git
+cd omni-eyes-view
+npm ci
+npm run dev
+```
+
+Then open `http://localhost:4173` and pick a first-run mission. Full setup, API keys, and Docker options are in the guide below.
+
+**What is live on the globe:**
+
+- Live flights and military traffic (OpenSky, adsb.lol)
+- Satellites with SGP4 propagation (CelesTrak)
+- Live vessels (AISStream, free key)
+- Earthquakes, last 24 hours (USGS)
+- Active fires and fire perimeters (NASA FIRMS, WFIGS / NIFC)
+- Weather: forecast wind, rain radar, satellite clouds, lightning, and cyclone tracks
+- Public CCTV cameras projected into the 3D scene, plus street-level photos
+- World radio, live transit, bikeshare, and directions
+- Optional hands-free voice control (OpenAI Realtime, key required)
+
+Omni Eyes View builds on God's Eye View, the open source project by Bilawal Sidhu. The code is released under the MIT License; third-party data and 3D models keep their own licenses. See [LICENSE](LICENSE), [DATA_SOURCES.md](DATA_SOURCES.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The full feature guide from the upstream project follows below.
+
+---
+
 <div align="center">
 
 # 🌐 God's Eye View
