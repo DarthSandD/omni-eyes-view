@@ -321,6 +321,36 @@ body.cockpit-mode #cockpit-cloud-effects.active {
   color: rgba(232, 234, 237, 0.7);
 }
 
+/* Fork credit chip (Darren Labs). Bottom-LEFT, stacked below the data-source
+   credits in the same muted mono style: in the ordinary view it sits between
+   the raised credit line (bottom: 2vh + 7rem) and the command dock, keeping
+   clear air under the required attribution; in clean/recording view it drops
+   to the corner under the credits at bottom: 36px. Non-interactive except
+   the support link. */
+#darren-labs-credit {
+  position: fixed;
+  bottom: 8px;
+  left: 36px;
+  z-index: 90;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(232, 234, 237, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+body:not(.ui-clean-view):not(.recording-mode) #darren-labs-credit {
+  bottom: calc(2vh + 7rem - 2.5rem);
+}
+#darren-labs-credit a {
+  pointer-events: auto;
+  color: rgba(232, 234, 237, 0.75);
+  text-decoration: none;
+}
+#darren-labs-credit a:hover {
+  text-decoration: underline;
+}
+
 /* Cesium's stock attribution lightbox grows with every registered data source.
    Keep the title and close affordance fixed while the complete, unabridged
    credit list wraps and scrolls inside a compact panel. */
