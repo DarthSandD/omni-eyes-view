@@ -28,9 +28,9 @@
        with the sources: src/materialSymbolsSubset.test.mjs fails when a source
        names a glyph this list is missing, because a missing glyph does not draw
        a box — the ligature never forms and the element renders the literal word. -->
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=adjust,arrow_drop_down,arrow_forward,arrow_left,arrow_right,bolt,chevron_left,chevron_right,close,close_fullscreen,dark_mode,draw,east,flare,flight,layers_clear,light_mode,local_fire_department,my_location,navigation,normal,on,open_in_full,public,radar,radio,right_panel_close,right_panel_open,rocket_launch,skip_next,skip_previous,upload_file,view_in_ar,visibility,visibility_off" rel="stylesheet" />
-  <script type="module" crossorigin src="/omni-eyes-view/assets/index-DzrTr6Jv.js"></script>
-  <link rel="stylesheet" crossorigin href="/omni-eyes-view/assets/index-C1OoQBLc.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=adjust,arrow_drop_down,arrow_forward,arrow_left,arrow_right,bolt,chevron_left,chevron_right,close,close_fullscreen,dark_mode,draw,east,flare,flight,layers,layers_clear,light_mode,local_fire_department,more_horiz,my_location,navigation,normal,on,open_in_full,public,radar,radio,right_panel_close,right_panel_open,rocket_launch,search,skip_next,skip_previous,upload_file,videocam,view_in_ar,visibility,visibility_off" rel="stylesheet" />
+  <script type="module" crossorigin src="/omni-eyes-view/assets/index-CSTtWsGM.js"></script>
+  <link rel="stylesheet" crossorigin href="/omni-eyes-view/assets/index-DGrOhBdE.css">
 </head>
 <body>
   <div id="cesiumContainer"></div>
@@ -445,7 +445,7 @@
       </button>
       <div class="pp-slider-row" id="hud-layout-row">
         <span class="pp-slider-mini-label" data-i18n>Layout</span>
-        <select id="hud-layout-select" class="pp-select" aria-label="HUD layout" data-i18n-aria-label>
+        <select id="hud-layout-select" class="pp-select gev-field gev-field--compact" aria-label="HUD layout" data-i18n-aria-label>
           <option value="tactical" data-i18n>Tactical</option>
           <option value="operator" data-i18n>Operator</option>
           <option value="minimal" data-i18n>Minimal</option>
@@ -459,27 +459,27 @@
       <output id="cyber-sonar-status" class="cyber-sonar-control" role="status"></output>
       <div class="pp-slider-row cyber-sonar-control cyber-sonar-setting" id="cyber-sonar-rings-row">
         <label class="pp-slider-mini-label" for="cyber-sonar-rings" data-i18n>Rings</label>
-        <input type="range" class="pp-slider" id="cyber-sonar-rings" min="3" max="12" step="1" value="8" aria-label="Sonar ring count" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="cyber-sonar-rings" min="3" max="12" step="1" value="8" aria-label="Sonar ring count" data-i18n-aria-label />
         <span class="pp-slider-value" id="cyber-sonar-rings-value">8</span>
       </div>
       <div class="pp-slider-row cyber-sonar-control cyber-sonar-setting" id="cyber-sonar-range-row">
         <label class="pp-slider-mini-label" for="cyber-sonar-range" data-i18n>Range</label>
-        <input type="range" class="pp-slider" id="cyber-sonar-range" min="60" max="120" step="1" value="100" aria-label="Sonar ring range" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="cyber-sonar-range" min="60" max="120" step="1" value="100" aria-label="Sonar ring range" data-i18n-aria-label />
         <span class="pp-slider-value" id="cyber-sonar-range-value">100%</span>
       </div>
       <div class="pp-slider-row cyber-sonar-control cyber-sonar-setting" id="cyber-sonar-intensity-row">
         <label class="pp-slider-mini-label" for="cyber-sonar-intensity" data-i18n>Power</label>
-        <input type="range" class="pp-slider" id="cyber-sonar-intensity" min="0" max="100" step="1" value="70" aria-label="Sonar intensity" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="cyber-sonar-intensity" min="0" max="100" step="1" value="70" aria-label="Sonar intensity" data-i18n-aria-label />
         <span class="pp-slider-value" id="cyber-sonar-intensity-value">70%</span>
       </div>
       <div class="pp-slider-row cyber-sonar-control cyber-sonar-setting" id="cyber-sonar-opacity-row">
         <label class="pp-slider-mini-label" for="cyber-sonar-opacity" data-i18n>Opacity</label>
-        <input type="range" class="pp-slider" id="cyber-sonar-opacity" min="35" max="100" step="1" value="84" aria-label="Cyber contact and label opacity" title="Minimum opacity for map dots, icons, models, brackets, and labels between sonar passes" data-i18n-aria-label data-i18n-title />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="cyber-sonar-opacity" min="35" max="100" step="1" value="84" aria-label="Cyber contact and label opacity" title="Minimum opacity for map dots, icons, models, brackets, and labels between sonar passes" data-i18n-aria-label data-i18n-title />
         <span class="pp-slider-value" id="cyber-sonar-opacity-value">84%</span>
       </div>
       <div class="pp-slider-row cyber-sonar-control cyber-sonar-setting" id="cyber-sonar-sector-row">
         <label class="pp-slider-mini-label" for="cyber-sonar-sector" data-i18n>Sector</label>
-        <input type="range" class="pp-slider" id="cyber-sonar-sector" min="8" max="60" step="1" value="24" aria-label="Sonar sector width" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="cyber-sonar-sector" min="8" max="60" step="1" value="24" aria-label="Sonar sector width" data-i18n-aria-label />
         <span class="pp-slider-value" id="cyber-sonar-sector-value">24°</span>
       </div>
     </div>
@@ -490,24 +490,24 @@
       </button>
       <div class="pp-slider-row detection-slider-row" id="detection-slider-row">
         <label class="pp-slider-mini-label" for="detection-density-slider" data-i18n>Density</label>
-        <input type="range" class="pp-slider" id="detection-density-slider" min="0" max="100" step="25" value="50" aria-label="Detection label density" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="detection-density-slider" min="0" max="100" step="25" value="50" aria-label="Detection label density" data-i18n-aria-label />
         <span class="pp-slider-value" id="detection-density-value">50%</span>
       </div>
       <div class="pp-slider-row detection-allocation-row" id="detection-allocation-row">
         <span class="pp-slider-mini-label" data-i18n>Allocation</span>
-        <div class="pp-mode-seg detection-allocation-seg" role="radiogroup" aria-label="Detection label allocation" data-i18n-aria-label>
-          <button class="pp-mode-btn active" id="detection-allocation-elastic" data-allocation="ELASTIC" role="radio" aria-checked="true" data-i18n>Elastic</button>
-          <button class="pp-mode-btn" id="detection-allocation-weighted" data-allocation="WEIGHTED" role="radio" aria-checked="false" data-i18n>Weighted</button>
+        <div class="gev-segmented pp-mode-seg detection-allocation-seg" role="radiogroup" aria-label="Detection label allocation" data-i18n-aria-label>
+          <button class="gev-segment pp-mode-btn active" id="detection-allocation-elastic" data-allocation="ELASTIC" role="radio" aria-checked="true" data-i18n>Elastic</button>
+          <button class="gev-segment pp-mode-btn" id="detection-allocation-weighted" data-allocation="WEIGHTED" role="radio" aria-checked="false" data-i18n>Weighted</button>
         </div>
       </div>
       <div class="pp-slider-row detection-fade-row" id="detection-fade-row">
         <label class="pp-slider-mini-label" for="detection-fade-slider" data-i18n>Fade</label>
-        <input type="range" class="pp-slider" id="detection-fade-slider" min="0" max="40" step="1" value="7" aria-label="Detection fade distance" title="World-overlay fade distance outside the keyhole as a percentage of its radius" data-i18n-aria-label data-i18n-title />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="detection-fade-slider" min="0" max="40" step="1" value="7" aria-label="Detection fade distance" title="World-overlay fade distance outside the keyhole as a percentage of its radius" data-i18n-aria-label data-i18n-title />
         <span class="pp-slider-value" id="detection-fade-value">7%</span>
       </div>
       <div class="pp-slider-row detection-opacity-row" id="detection-opacity-row">
         <label class="pp-slider-mini-label" for="detection-opacity-slider" data-i18n>Outside</label>
-        <input type="range" class="pp-slider" id="detection-opacity-slider" min="0" max="100" step="1" value="1" aria-label="Detection opacity outside the keyhole" title="World-overlay label and card opacity beyond the fade distance" data-i18n-aria-label data-i18n-title />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="detection-opacity-slider" min="0" max="100" step="1" value="1" aria-label="Detection opacity outside the keyhole" title="World-overlay label and card opacity beyond the fade distance" data-i18n-aria-label data-i18n-title />
         <span class="pp-slider-value" id="detection-opacity-value">1%</span>
       </div>
     </div>
@@ -531,9 +531,9 @@
       </button>
       <div class="pp-slider-row visible" id="models3d-mode-row">
         <span class="pp-slider-mini-label" data-i18n>Models</span>
-        <div class="pp-mode-seg" role="radiogroup" aria-label="3D model coverage" data-i18n-aria-label>
-          <button class="pp-mode-btn active" id="models3d-mode-proximity" data-mode="proximity" role="radio" aria-checked="true" data-i18n>Proximity</button>
-          <button class="pp-mode-btn" id="models3d-mode-all" data-mode="all" role="radio" aria-checked="false" data-i18n>All</button>
+        <div class="gev-segmented pp-mode-seg" role="radiogroup" aria-label="3D model coverage" data-i18n-aria-label>
+          <button class="gev-segment pp-mode-btn active" id="models3d-mode-proximity" data-mode="proximity" role="radio" aria-checked="true" data-i18n>Proximity</button>
+          <button class="gev-segment pp-mode-btn" id="models3d-mode-all" data-mode="all" role="radio" aria-checked="false" data-i18n>All</button>
         </div>
       </div>
     </div>
@@ -549,7 +549,7 @@
              mirrors SCOPE_FEATHER_RATIO_DEFAULT in src/scopeMask.js. Feather
              softens the black mask edge; label fading is the separate Fade
              slider. -->
-        <input type="range" class="pp-slider" id="scope-feather-slider" min="0" max="100" value="11" aria-label="Scope edge feather" title="Scope edge feather as a percentage of the keyhole radius" data-i18n-aria-label data-i18n-title />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="scope-feather-slider" min="0" max="100" value="11" aria-label="Scope edge feather" title="Scope edge feather as a percentage of the keyhole radius" data-i18n-aria-label data-i18n-title />
         <span class="pp-slider-value" id="scope-feather-value">11%</span>
       </div>
     </div>
@@ -560,15 +560,15 @@
       </button>
       <div class="pp-slider-row" id="draw-mode-row">
         <span class="pp-slider-mini-label" data-i18n>Shape</span>
-        <div class="pp-mode-seg" role="radiogroup" aria-label="Shape to draw" data-i18n-aria-label>
-          <button class="pp-mode-btn active" data-shape="area" role="radio" aria-checked="true" data-i18n>Area</button>
-          <button class="pp-mode-btn" data-shape="line" role="radio" aria-checked="false" data-i18n>Line</button>
-          <button class="pp-mode-btn" data-shape="pin" role="radio" aria-checked="false" data-i18n>Pin</button>
+        <div class="gev-segmented pp-mode-seg" role="radiogroup" aria-label="Shape to draw" data-i18n-aria-label>
+          <button class="gev-segment pp-mode-btn active" data-shape="area" role="radio" aria-checked="true" data-i18n>Area</button>
+          <button class="gev-segment pp-mode-btn" data-shape="line" role="radio" aria-checked="false" data-i18n>Line</button>
+          <button class="gev-segment pp-mode-btn" data-shape="pin" role="radio" aria-checked="false" data-i18n>Pin</button>
         </div>
       </div>
       <div class="pp-slider-row" id="draw-label-row">
         <input type="text" class="pp-text-input" id="draw-label-input" maxlength="120" placeholder="Label (optional)" aria-label="Label for the drawn shape" data-i18n-placeholder data-i18n-aria-label autocomplete="off" spellcheck="false">
-        <select class="pp-select draw-color-select" id="draw-color-select" aria-label="Colour of the drawn shape" data-i18n-aria-label>
+        <select class="pp-select draw-color-select gev-field gev-field--compact" id="draw-color-select" aria-label="Colour of the drawn shape" data-i18n-aria-label>
           <option value="primary" data-i18n>Primary</option>
           <option value="amber" data-i18n>Amber</option>
           <option value="cyan" data-i18n>Cyan</option>
@@ -604,7 +604,7 @@
         <span class="pp-label" data-i18n>Bloom</span>
       </button>
       <div class="pp-slider-row" id="bloom-slider-row">
-        <input type="range" class="pp-slider" id="bloom-intensity-slider" min="0" max="200" value="0" aria-label="Bloom intensity" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="bloom-intensity-slider" min="0" max="200" value="0" aria-label="Bloom intensity" data-i18n-aria-label />
         <span class="pp-slider-value" id="bloom-intensity-value">0%</span>
       </div>
     </div>
@@ -614,7 +614,7 @@
         <span class="pp-label" data-i18n>Sharpen</span>
       </button>
       <div class="pp-slider-row" id="sharpen-slider-row">
-        <input type="range" class="pp-slider" id="sharpen-intensity-slider" min="0" max="100" value="49" aria-label="Sharpen intensity" data-i18n-aria-label />
+        <input type="range" class="gev-quantitative-slider pp-slider" id="sharpen-intensity-slider" min="0" max="100" value="49" aria-label="Sharpen intensity" data-i18n-aria-label />
         <span class="pp-slider-value" id="sharpen-intensity-value">49%</span>
       </div>
     </div>
@@ -749,26 +749,26 @@
         <img id="cctv-frame" alt="CCTV feed frame" />
         <canvas id="cctv-video" class="cctv-frame" hidden></canvas>
       </div>
-      <div id="cctv-source-badge" role="status" aria-live="polite" data-i18n>SOURCE · UNKNOWN</div>
+      <div id="cctv-source-badge" class="gev-status-badge" role="status" aria-live="polite" data-i18n>SOURCE · UNKNOWN</div>
       <a id="cctv-watch-live" class="cctv-watch-live" href="#" target="_blank" rel="noopener" hidden data-i18n>WATCH LIVE</a>
       <div id="cctv-meta" data-i18n>Enable CCTV to load camera intersections</div>
       <div class="cctv-controls">
         <button id="cctv-enable-btn" class="scene-btn" data-i18n>CCTV OFF</button>
-        <button id="cctv-nearest-btn" class="scene-btn" data-i18n>NEAREST</button>
+        <button id="cctv-nearest-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEAREST</button>
       </div>
       <div class="cctv-controls">
-        <button id="cctv-prev-btn" class="scene-btn" data-i18n>PREV</button>
-        <select id="cctv-camera-select" aria-label="CCTV camera" data-i18n-aria-label></select>
-        <button id="cctv-next-btn" class="scene-btn" data-i18n>NEXT</button>
+        <button id="cctv-prev-btn" type="button" class="gev-action-button scene-btn" data-i18n>PREV</button>
+        <select class="gev-field" id="cctv-camera-select" aria-label="CCTV camera" data-i18n-aria-label></select>
+        <button id="cctv-next-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEXT</button>
       </div>
       <div class="cctv-controls">
-        <button id="cctv-focus-btn" class="scene-btn" data-i18n>FOCUS</button>
+        <button id="cctv-focus-btn" type="button" class="gev-action-button scene-btn" data-i18n>FOCUS</button>
         <button id="cctv-coverage-btn" class="scene-btn" data-i18n>COVERAGE OFF</button>
         <button id="cctv-auto-hop-btn" class="scene-btn" data-i18n>AUTO HOP OFF</button>
       </div>
       <div class="cctv-controls">
         <button id="cctv-projection-btn" class="scene-btn" data-i18n>PROJECTION ON</button>
-        <span id="cctv-quality-chip" data-i18n-runtime>CAL · --</span>
+        <span id="cctv-quality-chip" class="gev-status-badge gev-status-badge--box" data-i18n-runtime>CAL · --</span>
       </div>
       <div class="cctv-calibration-block">
         <div class="cctv-calibration-header">
@@ -785,8 +785,8 @@
           <button class="cctv-cal-value" data-cal-field="east" title="East offset from catalog position (m) — click to type" data-i18n-title>ΔE --</button>
         </div>
         <div class="cctv-controls cctv-calibration-actions">
-          <button id="cctv-calib-save-btn" class="scene-btn" data-i18n>SAVE CAL</button>
-          <button id="cctv-calib-reset-btn" class="scene-btn" data-i18n>RESET CAL</button>
+          <button id="cctv-calib-save-btn" type="button" class="gev-action-button scene-btn" data-i18n>SAVE CAL</button>
+          <button id="cctv-calib-reset-btn" type="button" class="gev-action-button scene-btn" data-i18n>RESET CAL</button>
         </div>
       </div>
       <div class="cctv-summary-label" data-i18n>SCENE SUMMARY</div>
@@ -806,64 +806,60 @@
         <button class="panel-collapse-btn" data-collapse-target="street-level-panel" title="Expand panel" data-i18n-title>◀</button>
       </div>
       <div id="sl-body" class="sl-body">
-        <div class="sl-main">
-          <div id="sl-viewer-wrap" class="sl-viewer-wrap" hidden>
-            <div class="sl-viewer-bar">
-              <div class="sl-viewer-tools">
-                <button id="sl-viewer-expand" class="scene-btn" type="button" aria-pressed="false" title="Expand the street-level view (Esc shrinks it)" data-i18n-title><span class="sl-btn-icon" aria-hidden="true">⤢</span><span class="sl-btn-text" data-i18n>EXPAND</span></button>
-                <div class="sl-seg" role="radiogroup" aria-label="Image fit" data-i18n-aria-label>
-                  <button type="button" class="sl-seg-btn is-active" data-sl-render="letterbox" role="radio" aria-checked="true" title="Fit: show the whole photo, with dark bars where its shape differs from the frame" data-i18n-title data-i18n>FIT</button>
-                  <button type="button" class="sl-seg-btn" data-sl-render="fill" role="radio" aria-checked="false" tabindex="-1" title="Fill: fill the frame edge to edge, cropping the photo" data-i18n-title data-i18n>FILL</button>
-                </div>
-                <button id="sl-follow-btn" class="scene-btn" type="button" aria-pressed="false" aria-label="Camera follows view" title="Camera follows view: move the globe camera wherever the street-level view looks" data-i18n-aria-label data-i18n-title><span class="sl-btn-icon" aria-hidden="true">⌖</span><span class="sl-btn-text" data-i18n>FOLLOW</span></button>
-              </div>
-              <div class="sl-viewer-tools sl-viewer-tools-right">
-                <button id="sl-viewer-close" class="sl-viewer-x" type="button" title="Close the image and deselect it on the map" aria-label="Close the street-level image" data-i18n-title data-i18n-aria-label>×</button>
+        <div id="sl-viewer-wrap" class="sl-viewer-wrap" hidden>
+          <div class="sl-viewer-bar">
+            <div class="sl-viewer-tools">
+              <button id="sl-viewer-expand" class="scene-btn" type="button" aria-pressed="false" title="Show the street-level view full screen (Esc shrinks it)" data-i18n-title><span class="sl-btn-icon" aria-hidden="true">⤢</span><span class="sl-btn-text" data-i18n>EXPAND</span></button>
+              <div class="gev-segmented sl-seg" role="radiogroup" aria-label="Image fit" data-i18n-aria-label>
+                <button type="button" class="gev-segment sl-seg-btn is-active" data-sl-render="letterbox" role="radio" aria-checked="true" title="Fit: show the whole photo, with dark bars where its shape differs from the frame" data-i18n-title data-i18n>FIT</button>
+                <button type="button" class="gev-segment sl-seg-btn" data-sl-render="fill" role="radio" aria-checked="false" tabindex="-1" title="Fill: fill the frame edge to edge, cropping the photo" data-i18n-title data-i18n>FILL</button>
               </div>
             </div>
-            <div class="sl-viewer-stage">
-              <div id="sl-viewer-placeholder" class="sl-viewer-placeholder" hidden></div>
-              <div id="sl-viewer" class="sl-viewer" aria-label="Street-level viewer" data-i18n-aria-label></div>
-            </div>
-            <div id="sl-image-meta" class="sl-image-meta">
-              <span id="sl-image-by" class="sl-image-by"></span>
-              <span class="sl-image-right">
-                <span id="sl-image-when" class="sl-image-when"></span>
-                <a id="sl-image-link" class="sl-image-link" href="#" target="_blank" rel="noopener noreferrer" title="Open this image on the provider's site" data-i18n-title hidden></a>
-              </span>
+            <div class="sl-viewer-tools sl-viewer-tools-right">
+              <button id="sl-viewer-close" class="sl-viewer-x" type="button" title="Close the image and deselect it on the map" aria-label="Close the street-level image" data-i18n-title data-i18n-aria-label>×</button>
             </div>
           </div>
-          <div class="sl-settings">
-            <div class="sl-providers" role="group" aria-label="Imagery providers" data-i18n-aria-label>
-              <span class="cctv-summary-label" data-i18n>PROVIDERS</span>
-              <div id="sl-provider-chips" class="sl-chips"></div>
-            </div>
-            <div id="sl-error" class="sl-error" role="alert" hidden><span aria-hidden="true">⚠</span> <span id="sl-error-text"></span></div>
-            <!-- A missing key gates the filters only: the chips above stay
-                 focusable so their tooltip can say how to add the key. -->
-            <fieldset id="sl-controls" class="sl-controls">
-              <div id="sl-pano-row" class="sl-filters" role="group" aria-label="Imagery filters" data-i18n-aria-label>
-                <span class="cctv-summary-label" data-i18n>IMAGERY</span>
-                <div class="sl-seg" role="radiogroup" aria-label="Panorama filter" data-i18n-aria-label>
-                  <button type="button" class="sl-seg-btn is-active" data-sl-pano="all" role="radio" aria-checked="true" data-i18n>ALL</button>
-                  <button type="button" class="sl-seg-btn" data-sl-pano="pano" role="radio" aria-checked="false" tabindex="-1">360°</button>
-                  <button type="button" class="sl-seg-btn" data-sl-pano="flat" role="radio" aria-checked="false" tabindex="-1" data-i18n>FLAT</button>
-                </div>
-              </div>
-              <div id="sl-since-row" class="sl-since">
-                <label class="cctv-summary-label" for="sl-since" data-i18n>SINCE</label>
-                <input id="sl-since" class="sl-range" type="range" min="0" max="8" step="1" value="0" aria-valuetext="ANY DATE" aria-describedby="sl-since-label sl-since-note" />
-                <output id="sl-since-label" class="sl-since-label" for="sl-since" data-i18n>ANY DATE</output>
-                <small id="sl-since-note" class="sl-since-note" hidden></small>
-              </div>
-            </fieldset>
-            <ul id="sl-legend" class="sl-legend" aria-label="Coverage colours" data-i18n-aria-label></ul>
-            <!-- The hint says how to open imagery; the button does it without a pointer. -->
-            <div class="sl-meta-row">
-              <div id="sl-coverage-meta" class="sl-meta"></div>
-              <button id="sl-nearest-btn" class="scene-btn sl-nearest-btn" type="button" hidden data-i18n-runtime>OPEN STREET VIEW</button>
+          <div class="sl-viewer-stage">
+            <div id="sl-viewer-placeholder" class="sl-viewer-placeholder" hidden></div>
+            <div id="sl-viewer" class="sl-viewer" aria-label="Street-level viewer" data-i18n-aria-label></div>
+          </div>
+          <div id="sl-image-meta" class="sl-image-meta">
+            <span id="sl-image-by" class="sl-image-by"></span>
+            <span class="sl-image-right">
+              <span id="sl-image-when" class="sl-image-when"></span>
+              <a id="sl-image-link" class="sl-image-link" href="#" target="_blank" rel="noopener noreferrer" title="Open this image on the provider's site" data-i18n-title hidden></a>
+            </span>
+          </div>
+        </div>
+        <div class="sl-providers" role="group" aria-label="Imagery providers" data-i18n-aria-label>
+          <span class="cctv-summary-label" data-i18n>PROVIDERS</span>
+          <div id="sl-provider-chips" class="sl-chips"></div>
+        </div>
+        <div id="sl-error" class="sl-error" role="alert" hidden><span aria-hidden="true">⚠</span> <span id="sl-error-text"></span></div>
+        <!-- A missing key gates the filters only: the chips above stay
+             focusable so their tooltip can say how to add the key. -->
+        <fieldset id="sl-controls" class="sl-controls">
+          <div id="sl-pano-row" class="sl-filters" role="group" aria-label="Imagery filters" data-i18n-aria-label>
+            <span class="cctv-summary-label" data-i18n>IMAGERY</span>
+            <div class="gev-segmented sl-seg" role="radiogroup" aria-label="Panorama filter" data-i18n-aria-label>
+              <button type="button" class="gev-segment sl-seg-btn is-active" data-sl-pano="all" role="radio" aria-checked="true" data-i18n>ALL</button>
+              <button type="button" class="gev-segment sl-seg-btn" data-sl-pano="pano" role="radio" aria-checked="false" tabindex="-1">360°</button>
+              <button type="button" class="gev-segment sl-seg-btn" data-sl-pano="flat" role="radio" aria-checked="false" tabindex="-1" data-i18n>FLAT</button>
             </div>
           </div>
+          <div id="sl-since-row" class="sl-since">
+            <label class="cctv-summary-label" for="sl-since" data-i18n>SINCE</label>
+            <input id="sl-since" class="sl-range" type="range" min="0" max="8" step="1" value="0" aria-valuetext="ANY DATE" aria-describedby="sl-since-label sl-since-note" />
+            <span class="sl-since-value">
+              <output id="sl-since-label" class="sl-since-label" for="sl-since" data-i18n>ANY DATE</output>
+              <small id="sl-since-note" class="sl-since-note" hidden></small>
+            </span>
+          </div>
+        </fieldset>
+        <!-- The hint says how to open imagery; the button does it without a pointer. -->
+        <div class="sl-meta-row">
+          <div id="sl-coverage-meta" class="sl-meta"></div>
+          <button id="sl-nearest-btn" class="scene-btn sl-nearest-btn" type="button" hidden data-i18n-runtime>OPEN STREET VIEW</button>
         </div>
       </div>
     </div>
@@ -879,24 +875,24 @@
         <button class="panel-collapse-btn" data-collapse-target="scene-panel" title="Collapse panel" data-i18n-title>+</button>
       </div>
       <div class="scene-controls">
-        <select id="scene-select" aria-label="Scene recipe" data-i18n-aria-label></select>
-        <button id="scene-new-btn" class="scene-btn" data-i18n>NEW</button>
-        <button id="scene-delete-btn" class="scene-btn scene-btn-danger" data-i18n>DEL</button>
+        <select class="gev-field" id="scene-select" aria-label="Scene recipe" data-i18n-aria-label></select>
+        <button id="scene-new-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEW</button>
+        <button id="scene-delete-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>DEL</button>
       </div>
       <div class="scene-controls">
-        <button id="scene-capture-btn" class="scene-btn" data-i18n>CAPTURE SHOT</button>
-        <button id="scene-update-shot-btn" class="scene-btn" data-i18n>UPDATE SHOT</button>
+        <button id="scene-capture-btn" type="button" class="gev-action-button scene-btn" data-i18n>CAPTURE SHOT</button>
+        <button id="scene-update-shot-btn" type="button" class="gev-action-button scene-btn" data-i18n>UPDATE SHOT</button>
       </div>
       <div id="scene-shot-list" class="scene-shot-list"></div>
       <div class="scene-controls">
-        <button id="scene-start-btn" class="scene-btn" data-i18n>START</button>
-        <button id="scene-stop-btn" class="scene-btn scene-btn-danger" data-i18n>STOP</button>
-        <button id="scene-next-btn" class="scene-btn" data-i18n>NEXT</button>
+        <button id="scene-start-btn" type="button" class="gev-action-button scene-btn" data-i18n>START</button>
+        <button id="scene-stop-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>STOP</button>
+        <button id="scene-next-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEXT</button>
       </div>
       <div class="scene-controls">
-        <button id="scene-export-btn" class="scene-btn" data-i18n>EXPORT PRESETS</button>
-        <button id="scene-import-btn" class="scene-btn" data-i18n>IMPORT</button>
-        <button id="scene-download-btn" class="scene-btn" data-i18n>RUN LOG</button>
+        <button id="scene-export-btn" type="button" class="gev-action-button scene-btn" data-i18n>EXPORT PRESETS</button>
+        <button id="scene-import-btn" type="button" class="gev-action-button scene-btn" data-i18n>IMPORT</button>
+        <button id="scene-download-btn" type="button" class="gev-action-button scene-btn" data-i18n>RUN LOG</button>
         <input type="file" id="scene-import-file" accept="application/json,.json" hidden />
       </div>
       <div class="scene-progress">
@@ -1031,7 +1027,7 @@
             <div class="radio-directory-row">
               <button id="radio-enable-btn" class="panel-layer-toggle" type="button" aria-pressed="false" data-i18n>ENABLE</button>
               <label class="radio-filter-label" for="radio-filter" data-i18n>STATION TAG</label>
-              <select id="radio-filter" aria-label="Filter stations by station tag" disabled data-i18n-aria-label>
+              <select class="gev-field" id="radio-filter" aria-label="Filter stations by station tag" disabled data-i18n-aria-label>
                 <option value="all" data-i18n>All</option>
               </select>
             </div>
@@ -1090,7 +1086,7 @@
               </div>
               <div class="sdr-gain-row">
                 <label for="sdr-gain-select" data-i18n>GAIN</label>
-                <select id="sdr-gain-select" aria-label="RTL-SDR tuner gain for the current mode" data-i18n-aria-label>
+                <select class="gev-field" id="sdr-gain-select" aria-label="RTL-SDR tuner gain for the current mode" data-i18n-aria-label>
                   <option value="auto" data-i18n>AUTO</option>
                   <option value="0.0" translate="no">0.0 dB</option>
                   <option value="0.9" translate="no">0.9 dB</option>
@@ -1131,7 +1127,7 @@
               </div>
               <div class="sdr-frequency-row">
                 <label for="sdr-frequency-input" data-i18n>FM MHZ</label>
-                <input id="sdr-frequency-input" type="number" min="87.5" max="108" step="0.1" value="98.5" inputmode="decimal" />
+                <input class="gev-field" id="sdr-frequency-input" type="number" min="87.5" max="108" step="0.1" value="98.5" inputmode="decimal" />
                 <button id="sdr-tune-btn" type="button" data-i18n>TUNE</button>
               </div>
               <div class="sdr-seek-row" role="group" aria-label="Seek broadcast FM stations" data-i18n-aria-label>
